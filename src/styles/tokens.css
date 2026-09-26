@@ -1,0 +1,43 @@
+:root {
+	--panel: #d8d6d0;
+	--face: #e6e4de;
+	--face-2: #f2f0eb;
+	--ink: #2a2a28;
+	--ink-2: #6e6b64;
+	--ink-3: #9e9b93;
+	--line: #bdbab2;
+	--inverse-bg: #2a2a28;
+	--inverse-fg: #e6e4de;
+	--signal: #ff5a1f;
+	--signal-deep: #b8420f;
+	--signal-ink: #1a1a18;
+	--signal-text: #b8420f;
+	--lcd-bg: #1e2a1e;
+	--lcd-fg: #b8f28a;
+	--lcd-dim: #7fa866;
+	--lcd-ghost: #2f422f;
+	--led-ok: #3fa34d;
+	--led-warn: #e0a100;
+	--led-err: #d2361b;
+	--led-off: #bdbab2;
+	--font-ui: "Geologica", system-ui, sans-serif;
+	--font-mono: "Martian Mono", ui-monospace, Consolas, monospace;
+	--ease-detent: cubic-bezier(0.3, 1.6, 0.5, 1);
+	--ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+	color-scheme: light;
+}
+
+:root[data-theme="night"] {
+	--panel: #111110;
+	--face: #1c1c1a;
+	--face-2: #262623;
+	--ink: #e6e4de;
+	--ink-2: #a19e96;
+	--ink-3: #6e6b64;
+	--line: #3a3a36;
+	--inverse-bg: #e6e4de;
+	--inverse-fg: #1c1c1a;
+	--signal-text: #ff7a45;
+	--led-off: #3a3a36;
+	color-scheme: dark;
+}

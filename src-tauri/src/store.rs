@@ -126,9 +126,11 @@ mod tests {
     #[test]
     fn settings_roundtrip() {
         let (_d, s) = tmp();
-        let mut st = Settings::default();
-        st.profile = ProfileId::Quality;
-        st.engine.extra_args = "--foo".into();
+        let st = Settings {
+            profile: ProfileId::Quality,
+            engine: EngineSettings { extra_args: "--foo".into(), ..EngineSettings::default() },
+            ..Settings::default()
+        };
         s.save_settings(&st).unwrap();
         assert_eq!(s.load_settings(ProfileId::Potato).0, st);
     }

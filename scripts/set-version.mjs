@@ -21,6 +21,7 @@ const editText = (file, pattern, replacement) => {
 editJson("package.json", (p) => (p.version = version));
 editJson("src-tauri/tauri.conf.json", (c) => (c.version = version));
 editText("src-tauri/Cargo.toml", /^version = ".*"$/m, `version = "${version}"`);
+editText("src-tauri/Cargo.lock", /(name = "foundry-performance"\r?\nversion = )".*"/, `$1"${version}"`);
 editText("agent/src/diag.ts", /AGENT_VERSION = ".*";/, `AGENT_VERSION = "${version}";`);
 
 console.log(`version set to ${version} — now commit, tag v${version} and push the tag`);

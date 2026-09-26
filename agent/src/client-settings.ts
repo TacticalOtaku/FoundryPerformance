@@ -9,10 +9,13 @@ export const CORE_KEYS = {
 	mipmap: "core.mipmap"
 } as const;
 
+export const FOUNDRY_MAX_FPS = 60;
+
 export function coreValues(l: Levers): Record<string, unknown> {
 	return {
 		[CORE_KEYS.perfMode]: l.perfMode,
-		[CORE_KEYS.maxFps]: l.maxFps,
+		// Настройка Foundry ограничена 60; потолок выше ставим прямо на тикер (FocusThrottle)
+		[CORE_KEYS.maxFps]: Math.min(l.maxFps, FOUNDRY_MAX_FPS),
 		[CORE_KEYS.pixelRatioScaling]: l.pixelRatioScaling,
 		[CORE_KEYS.lightAnimation]: l.lightAnimation,
 		[CORE_KEYS.visionAnimation]: l.visionAnimation,

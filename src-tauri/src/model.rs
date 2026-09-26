@@ -211,7 +211,11 @@ pub struct BenchResult {
 pub struct ServerStats {
     pub last_session: Option<FpsSummary>,
     pub last_bench: Option<BenchResult>,
+    /// Средний FPS последних отчётов сеанса (раз в 30 с) — мини-график на ЖК.
+    pub history: Vec<f32>,
 }
+
+pub const HISTORY_LEN: usize = 8;
 
 /// Сообщение для ЖК лаунчера: ключ i18n + параметры.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

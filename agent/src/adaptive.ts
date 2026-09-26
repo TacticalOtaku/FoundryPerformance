@@ -26,12 +26,26 @@ export interface AdaptiveState {
 	blockedUntil: number;
 }
 
-export function configFor(l: Levers): AdaptiveConfig {
+const COMMON_HZ = [30, 50, 60, 75, 90, 100, 120, 144, 165, 180, 200, 240, 360];
+
+/** Частота монитора по интервалам requestAnimationFrame: медиана, прижатая к типовым значениям. */
+export function refreshFromDeltas(deltasMs: number[]): number {
+	if (deltasMs.length === 0) return 60;
+	const sorted = [...deltasMs].sort((a, b) => a - b);
+	const hz = 1000 / sorted[Math.floor(sorted.length / 2)];
+	return COMMON_HZ.reduce((best, c) => (Math.abs(c - hz) < Math.abs(best - hz) ? c : best));
+}
+
+/**
+ * Цель — не больше кадров, чем может показать монитор: при потолке 144 на 60 Гц
+ * контроллер иначе решил бы, что игра «тормозит», и зря уронил бы разрешение.
+ */
+export function configFor(l: Levers, refreshHz = Infinity): AdaptiveConfig {
 	return {
 		min: l.resMin,
 		max: l.resMax,
 		step: 0.05,
-		targetMs: 1000 / l.maxFps,
+		targetMs: 1000 / Math.min(l.maxFps, refreshHz),
 		overRatio: 1.15,
 		stableRatio: 1.05,
 		downAfterMs: 2000,

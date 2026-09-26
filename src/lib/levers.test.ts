@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baseFor, countOverrides, resolved, withOverrides } from "./levers";
+import { baseFor, countOverrides, knobPosition, resolved, withOverrides } from "./levers";
 import type { Levers, StateDto } from "./types";
 
 const preset = (maxFps: number, mipmap: boolean) => ({ maxFps, mipmap, resMin: 0.7 }) as Levers;
@@ -45,5 +45,26 @@ describe("withOverrides", () => {
 	it("counts overrides", () => {
 		expect(countOverrides({ maxFps: 45, mipmap: false })).toBe(2);
 		expect(countOverrides({})).toBe(0);
+	});
+});
+
+describe("knobPosition", () => {
+	const make = (global: object, server: object, profile: string | null) =>
+		({
+			settings: { profile: "balance", overrides: global },
+			servers: [{ id: "a", profile, overrides: server }],
+			presets: {}
+		}) as unknown as StateDto;
+
+	it("shows the preset when nothing is overridden", () => {
+		expect(knobPosition(make({}, {}, "potato"), "a")).toBe("potato");
+		expect(knobPosition(make({}, {}, null), "a")).toBe("balance");
+		expect(knobPosition(make({}, {}, null), null)).toBe("balance");
+	});
+
+	it("shows manual when the server or all servers have manual changes", () => {
+		expect(knobPosition(make({}, { maxFps: 144 }, "potato"), "a")).toBe("manual");
+		expect(knobPosition(make({ mipmap: false }, {}, "potato"), "a")).toBe("manual");
+		expect(knobPosition(make({ mipmap: false }, {}, null), null)).toBe("manual");
 	});
 });

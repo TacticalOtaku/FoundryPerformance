@@ -25,7 +25,8 @@ export const TIP_IMPACT = {
 	profile: {},
 	quality: { fps: 0, look: 0 },
 	balance: { fps: 3, look: 1 },
-	potato: { fps: 5, look: 4 }
+	potato: { fps: 5, look: 4 },
+	manual: {}
 } satisfies Record<string, Impact>;
 
 export interface Impact {

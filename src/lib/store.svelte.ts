@@ -1,12 +1,31 @@
 import { api, updateApi, windowControls } from "./api";
 import { setLocale, t } from "./i18n.svelte";
-import { baseFor, overridesFor, type Scope, withOverrides } from "./levers";
+import { baseFor, countOverrides, type KnobPosition, overridesFor, type Scope, withOverrides } from "./levers";
 import { probeUrl } from "./status";
 import type { Levers, Overrides, ProbeResult, ProfileId, Server, Settings, StateDto, UpdateInfo } from "./types";
 
 export type Screen = "main" | "tuning" | "slot";
 
 const snap = <T>(v: T): T => $state.snapshot(v) as T;
+
+/** Ручные правки, сброшенные поворотом ручки на пресет, — чтобы «РУЧ» мог их вернуть. */
+const savedKey = (id: string) => `fp.lastOverrides.${id}`;
+function saveOverrides(id: string, o: Overrides): void {
+	try {
+		localStorage.setItem(savedKey(id), JSON.stringify(o));
+	} catch {
+		/* нет хранилища — «РУЧ» просто откроет настройку */
+	}
+}
+function takeSavedOverrides(id: string): Overrides | null {
+	try {
+		const raw = localStorage.getItem(savedKey(id));
+		localStorage.removeItem(savedKey(id));
+		return raw ? (JSON.parse(raw) as Overrides) : null;
+	} catch {
+		return null;
+	}
+}
 const systemLocale = (): "ru" | "en" => (navigator.language.toLowerCase().startsWith("ru") ? "ru" : "en");
 
 class AppStore {
@@ -134,10 +153,31 @@ class AppStore {
 	}
 
 	/** Ручка на главном экране: профиль выбранного сервера (или глобальный, если серверов нет). */
-	async setKnob(p: ProfileId): Promise<void> {
+	/**
+	 * Пресет — чистый профиль: правки этого уровня сбрасываются (и запоминаются).
+	 * «РУЧ» — вернуть запомненные правки, а если их нет — открыть настройку.
+	 */
+	async setKnob(p: KnobPosition): Promise<void> {
 		const s = this.selected;
-		if (s) await this.patchServer(s.id, { profile: p });
-		else await this.saveSettings({ profile: p });
+		const id = s?.id ?? "global";
+		if (p === "manual") {
+			const saved = takeSavedOverrides(id);
+			if (!saved || countOverrides(saved) === 0) {
+				this.openTuning(s ? { kind: "server", id: s.id } : { kind: "global" });
+			} else if (s) await this.patchServer(s.id, { overrides: saved });
+			else await this.saveSettings({ overrides: saved });
+			return;
+		}
+		if (!s) {
+			const own = this.dto!.settings.overrides;
+			if (countOverrides(own) > 0) saveOverrides(id, snap(own));
+			await this.saveSettings({ profile: p, overrides: {} });
+			return;
+		}
+		if (countOverrides(s.overrides) > 0) saveOverrides(id, snap(s.overrides));
+		await this.patchServer(s.id, { profile: p, overrides: {} });
+		// Общие правки ручка сервера не трогает — подсказываем, где их сбросить
+		if (countOverrides(this.dto!.settings.overrides) > 0) this.error = "knob.globalOverrides";
 	}
 
 	async setScopeProfile(p: ProfileId | null): Promise<void> {

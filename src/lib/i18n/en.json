@@ -89,7 +89,7 @@
   "tip.meter.fps": "FPS GAIN",
   "tip.meter.look": "VISUAL COST",
   "tip.resolution": "Resolution the map is rendered at. Chat, sheets and Foundry windows stay sharp. With adaptive mode this is the floor: heavy scenes drop down to it, and it climbs back when there is headroom.",
-  "tip.maxFps": "Frame cap for the map. A lower cap means less GPU load and steadier frames, but less fluid motion.",
+  "tip.maxFps": "Frame cap for the map, up to 240. Foundry itself stops at 60 — the client holds higher caps. Going above your monitor's refresh rate is pointless: the browser won't draw more. A lower cap means less load and steadier frames.",
   "tip.unfocused": "How many frames to draw while the game window isn't focused (you're in Discord or a browser). Frees the GPU for other apps.",
   "tip.perfMode": "Foundry's built-in quality mode: texture resolution, antialiasing, shadow softness. LOW takes a lot off weak GPUs.",
   "tip.adaptive": "Watches frame time and lowers map resolution in heavy scenes, then brings it back. The main lever for weak GPUs.",
@@ -161,5 +161,11 @@
   "update.err.signature": "Update failed the signature check — installation cancelled",
   "update.err.version": "Update failed the version check — installation cancelled",
   "update.err.download": "Couldn't download the update. Check your connection and try again",
-  "update.err.apply": "Couldn't replace the program file. Try again"
+  "update.err.apply": "Couldn't replace the program file. Try again",
+  "profile.manual": "MAN",
+  "profile.manual.long": "Manual",
+  "tip.manual": "Lit when tuning has manual changes. Turning to a preset resets this server's changes (turn back to “MAN” to restore them).",
+  "knob.globalOverrides": "Shared changes for all servers remain — reset them in “Tuning → Scope: All servers”",
+  "main.channels": "CHANNELS",
+  "tuning.fpsInput": "Exact FPS value"
 }

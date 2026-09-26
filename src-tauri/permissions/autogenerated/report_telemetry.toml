@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-report-telemetry"
+description = "Enables the report_telemetry command without any pre-configured scope."
+commands.allow = ["report_telemetry"]
+
+[[permission]]
+identifier = "deny-report-telemetry"
+description = "Denies the report_telemetry command without any pre-configured scope."
+commands.deny = ["report_telemetry"]

@@ -11,6 +11,20 @@ function plain(v: unknown): unknown {
 	}
 }
 
+/** Где у первого видео-меша лежит источник — чтобы поправить collectVideos, если путь в v14 другой. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function probeVideoMesh(canvas: any): unknown {
+	const first = canvas?.primary?.videoMeshes?.values?.().next?.().value;
+	if (!first) return null;
+	const kind = (v: unknown) => (v === undefined || v === null ? null : ((v as object).constructor?.name ?? typeof v));
+	return {
+		mesh: kind(first),
+		sourceElement: kind(first.sourceElement),
+		baseTextureResourceSource: kind(first.texture?.baseTexture?.resource?.source),
+		textureSourceResource: kind(first.texture?.source?.resource)
+	};
+}
+
 export function collectDiag(extra: Record<string, unknown>): Record<string, unknown> {
 	const game = g.game;
 	const canvas = g.canvas;
@@ -56,6 +70,8 @@ export function collectDiag(extra: Record<string, unknown>): Record<string, unkn
 		renderer: { type: r?.type, resolution: r?.resolution, screen: [r?.screen?.width, r?.screen?.height], gpu },
 		canvasPerformance: plain(canvas?.performance),
 		hasVideoMeshes: Boolean(canvas?.primary?.videoMeshes),
+		videoMeshCount: canvas?.primary?.videoMeshes?.size ?? null,
+		videoMeshProbe: probeVideoMesh(canvas),
 		videoCount: collectVideos(canvas).length,
 		modules,
 		settings,

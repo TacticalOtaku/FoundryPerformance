@@ -27,7 +27,7 @@ export function writePreboot(storage: { setItem(k: string, v: string): void }, v
 
 export interface SettingsHost {
 	settings: {
-		settings: Map<string, { default?: unknown }>;
+		settings: Map<string, { default?: unknown; scope?: string }>;
 		get(ns: string, key: string): unknown;
 		set(ns: string, key: string, value: unknown): Promise<unknown>;
 	};
@@ -42,7 +42,9 @@ export interface ReconcileResult {
 export async function reconcile(game: SettingsHost, values: Record<string, unknown>): Promise<ReconcileResult> {
 	const result: ReconcileResult = { applied: [], missing: [], failed: [] };
 	for (const [full, value] of Object.entries(values)) {
-		if (!game.settings.settings.has(full)) {
+		// Мировые настройки не трогаем никогда: у ГМа это изменило бы игру всем игрокам
+		const scope = game.settings.settings.get(full)?.scope;
+		if (scope !== "client" && scope !== "user") {
 			result.missing.push(full);
 			continue;
 		}

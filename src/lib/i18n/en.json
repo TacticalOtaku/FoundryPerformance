@@ -42,6 +42,7 @@
   "slot.tune": "Tune this slot →",
   "tuning.title": "TUNING",
   "tuning.global": "ALL SERVERS",
+  "tuning.scope": "SCOPE",
   "tuning.back": "← BACK",
   "tuning.profile": "PROFILE",
   "tuning.changed": "+{n} MOD",

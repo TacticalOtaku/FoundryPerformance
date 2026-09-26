@@ -42,6 +42,7 @@
   "slot.tune": "Тонкая настройка слота →",
   "tuning.title": "НАСТРОЙКА",
   "tuning.global": "ВСЕ СЕРВЕРЫ",
+  "tuning.scope": "УРОВЕНЬ",
   "tuning.back": "← НАЗАД",
   "tuning.profile": "ПРОФИЛЬ",
   "tuning.changed": "+{n} ИЗМ",

@@ -8,7 +8,8 @@ export interface ModuleSetting {
 
 export const MODULE_SETTINGS: ModuleSetting[] = [
 	{ module: "sequencer", key: "sequencer.effectsEnabled", value: (l) => l.sequencer },
-	{ module: "fxmaster", key: "fxmaster.disableAll", value: (l) => !l.fxmaster }
+	// FXMaster 8.x: клиентская `enable`; `disableAll` — мировая, её не трогаем
+	{ module: "fxmaster", key: "fxmaster.enable", value: (l) => l.fxmaster }
 ];
 
 export const PRIME_MODULE = "fvtt-perf-optim";

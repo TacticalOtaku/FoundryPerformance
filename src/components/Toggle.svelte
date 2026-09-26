@@ -1,13 +1,17 @@
 <script lang="ts">
+	import type { TipData } from "../lib/tips";
+	import { tip as tooltip } from "../lib/tooltip.svelte";
+
 	let {
 		label,
 		checked,
 		modified = false,
+		tip,
 		onchange
-	}: { label: string; checked: boolean; modified?: boolean; onchange: (v: boolean) => void } = $props();
+	}: { label: string; checked: boolean; modified?: boolean; tip?: TipData; onchange: (v: boolean) => void } = $props();
 </script>
 
-<button class="toggle" role="switch" aria-checked={checked} onclick={() => onchange(!checked)}>
+<button class="toggle" use:tooltip={tip} role="switch" aria-checked={checked} onclick={() => onchange(!checked)}>
 	<span>{label}{#if modified}<i class="dot" aria-hidden="true"></i>{/if}</span>
 	<span class="sw" class:on={checked}><i></i></span>
 </button>

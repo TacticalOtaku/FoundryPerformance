@@ -1,4 +1,7 @@
 <script lang="ts">
+	import type { TipData } from "../lib/tips";
+	import { tip as tooltip } from "../lib/tooltip.svelte";
+
 	let {
 		label,
 		value,
@@ -7,6 +10,7 @@
 		step,
 		format,
 		modified = false,
+		tip,
 		onchange
 	}: {
 		label: string;
@@ -16,6 +20,7 @@
 		step: number;
 		format: (v: number) => string;
 		modified?: boolean;
+		tip?: TipData;
 		onchange: (v: number) => void;
 	} = $props();
 
@@ -26,7 +31,7 @@
 	});
 </script>
 
-<label class="fader">
+<label class="fader" use:tooltip={tip}>
 	<span class="lbl mono">{label}{#if modified}<i class="dot" aria-hidden="true"></i>{/if}</span>
 	<input
 		type="range"

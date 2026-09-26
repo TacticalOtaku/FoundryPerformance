@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t } from "../lib/i18n.svelte";
+	import { tip, tipFor } from "../lib/tooltip.svelte";
 	import type { ProfileId } from "../lib/types";
 
 	let { value, onchange }: { value: ProfileId; onchange: (p: ProfileId) => void } = $props();
@@ -33,13 +34,14 @@
 		{onkeydown}
 		onwheel={(e) => step(e.deltaY > 0 ? 1 : -1)}
 		onclick={() => step(value === "potato" ? -2 : 1)}
+		use:tip={tipFor("profile", t("knob.label"))}
 	>
 		<div class="cap" style:transform={`rotate(${ANGLE[value]}deg)`}><i></i></div>
 		{#each ORDER as p (p)}<span class="tick" style:transform={`rotate(${ANGLE[p]}deg)`}></span>{/each}
 	</div>
 	<div class="scale mono">
 		{#each ORDER as p (p)}
-			<button class:on={p === value} onclick={() => onchange(p)}>{t(`profile.${p}`)}</button>
+			<button class:on={p === value} onclick={() => onchange(p)} use:tip={tipFor(p, t(`profile.${p}.long`))}>{t(`profile.${p}`)}</button>
 		{/each}
 	</div>
 </div>

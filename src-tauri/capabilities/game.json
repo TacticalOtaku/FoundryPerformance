@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "game-telemetry",
-  "windows": ["game"],
+  "windows": ["game", "game-*"],
   "remote": {
     "urls": ["https://*:*/*", "http://*:*/*"]
   },

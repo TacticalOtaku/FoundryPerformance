@@ -24,19 +24,21 @@ pub fn create(app: &AppHandle, lang: &str) -> tauri::Result<()> {
     builder
         .on_menu_event(|app, event| match event.id.as_ref() {
             "hud" => {
-                if let Some(w) = app.get_webview_window(windows::GAME) {
+                // HUD есть только в окне, где загружен мир; в остальных __FP__ не ответит
+                for (_, w) in app.webview_windows().into_iter().filter(|(l, _)| windows::is_game(l)) {
                     let _ = w.eval("window.__FP__ && window.__FP__.toggleHud()");
                 }
             }
-            "launcher" => match app.get_webview_window(windows::GAME) {
-                // закрытие игры само откроет лаунчер (см. lib.rs, WindowEvent::Destroyed)
-                Some(w) => {
-                    let _ = w.destroy();
-                }
-                None => {
+            "launcher" => {
+                let games: Vec<_> = app.webview_windows().into_iter().filter(|(l, _)| windows::is_game(l)).collect();
+                if games.is_empty() {
                     let _ = windows::open_launcher(app);
                 }
-            },
+                // закрытие последнего окна игры само откроет лаунчер (см. lib.rs, WindowEvent::Destroyed)
+                for (_, w) in games {
+                    let _ = w.destroy();
+                }
+            }
             "quit" => app.exit(0),
             _ => {}
         })

@@ -9,5 +9,6 @@ pub mod registry;
 pub mod selfdelete;
 pub mod selfreplace;
 pub mod shortcuts;
+pub mod update;
 pub mod version;
 pub mod webview2;

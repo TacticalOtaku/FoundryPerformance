@@ -5,6 +5,7 @@
 	import { t } from "../lib/i18n.svelte";
 	import { countOverrides, overridesFor, profileFor, resolved } from "../lib/levers";
 	import { app } from "../lib/store.svelte";
+	import { tip, tipFor } from "../lib/tooltip.svelte";
 	import type { AngleBackend, Levers, LocalePref, PrimeLevel, ProfileId, ThemePref, VideoMode } from "../lib/types";
 
 	const dto = $derived(app.dto!);
@@ -55,6 +56,7 @@
 			{#if scopeOptions.length > 1}
 				<Segmented
 					label={t("tuning.scope")}
+					tip={tipFor("scope", t("tuning.scope"))}
 					options={scopeOptions}
 					value={scope.kind === "global" ? "global" : scope.id}
 					onchange={(v) => app.openTuning(v === "global" ? { kind: "global" } : { kind: "server", id: v })}
@@ -63,6 +65,7 @@
 			<Segmented
 				label={t("tuning.profile")}
 				options={profileOptions}
+				tip={tipFor("profile", t("tuning.profile"))}
 				value={profileValue}
 				onchange={(v) => app.setScopeProfile(v === "inherit" ? null : v)}
 			/>
@@ -71,6 +74,7 @@
 		<div class="faders">
 			<Fader
 				label={t("tuning.resolution")}
+				tip={tipFor("resolution", t("tuning.resolution"))}
 				value={l.resMin}
 				min={0.4}
 				max={1}
@@ -81,6 +85,7 @@
 			/>
 			<Fader
 				label={t("tuning.maxFps")}
+				tip={tipFor("maxFps", t("tuning.maxFps"))}
 				value={l.maxFps}
 				min={20}
 				max={60}
@@ -91,6 +96,7 @@
 			/>
 			<Fader
 				label={t("tuning.unfocused")}
+				tip={tipFor("unfocused", t("tuning.unfocused"))}
 				value={l.unfocusedFps}
 				min={5}
 				max={60}
@@ -102,6 +108,7 @@
 			<Segmented
 				vertical
 				label={t("tuning.perfMode")}
+				tip={tipFor("perfMode", t("tuning.perfMode"))}
 				options={perfOptions}
 				value={l.perfMode}
 				modified={mod("perfMode")}
@@ -110,36 +117,38 @@
 		</div>
 
 		<div class="toggles">
-			<Toggle label={t("tuning.adaptive")} checked={l.adaptive} modified={mod("adaptive")} onchange={(v) => app.setLevers({ adaptive: v })} />
-			<Toggle label={t("tuning.lightAnimation")} checked={l.lightAnimation} modified={mod("lightAnimation")} onchange={(v) => app.setLevers({ lightAnimation: v })} />
-			<Toggle label={t("tuning.visionAnimation")} checked={l.visionAnimation} modified={mod("visionAnimation")} onchange={(v) => app.setLevers({ visionAnimation: v })} />
-			<Toggle label={t("tuning.mipmap")} checked={l.mipmap} modified={mod("mipmap")} onchange={(v) => app.setLevers({ mipmap: v })} />
-			<Toggle label={t("tuning.pixelRatio")} checked={l.pixelRatioScaling} modified={mod("pixelRatioScaling")} onchange={(v) => app.setLevers({ pixelRatioScaling: v })} />
-			<Toggle label={t("tuning.uiBlur")} checked={l.uiBlur} modified={mod("uiBlur")} onchange={(v) => app.setLevers({ uiBlur: v })} />
-			<Toggle label="Sequencer" checked={l.sequencer} modified={mod("sequencer")} onchange={(v) => app.setLevers({ sequencer: v })} />
-			<Toggle label="FXMaster" checked={l.fxmaster} modified={mod("fxmaster")} onchange={(v) => app.setLevers({ fxmaster: v })} />
+			<Toggle label={t("tuning.adaptive")} tip={tipFor("adaptive", t("tuning.adaptive"))} checked={l.adaptive} modified={mod("adaptive")} onchange={(v) => app.setLevers({ adaptive: v })} />
+			<Toggle label={t("tuning.lightAnimation")} tip={tipFor("lightAnimation", t("tuning.lightAnimation"))} checked={l.lightAnimation} modified={mod("lightAnimation")} onchange={(v) => app.setLevers({ lightAnimation: v })} />
+			<Toggle label={t("tuning.visionAnimation")} tip={tipFor("visionAnimation", t("tuning.visionAnimation"))} checked={l.visionAnimation} modified={mod("visionAnimation")} onchange={(v) => app.setLevers({ visionAnimation: v })} />
+			<Toggle label={t("tuning.mipmap")} tip={tipFor("mipmap", t("tuning.mipmap"))} checked={l.mipmap} modified={mod("mipmap")} onchange={(v) => app.setLevers({ mipmap: v })} />
+			<Toggle label={t("tuning.pixelRatio")} tip={tipFor("pixelRatio", t("tuning.pixelRatio"))} checked={l.pixelRatioScaling} modified={mod("pixelRatioScaling")} onchange={(v) => app.setLevers({ pixelRatioScaling: v })} />
+			<Toggle label={t("tuning.uiBlur")} tip={tipFor("uiBlur", t("tuning.uiBlur"))} checked={l.uiBlur} modified={mod("uiBlur")} onchange={(v) => app.setLevers({ uiBlur: v })} />
+			<Toggle label="Sequencer" tip={tipFor("sequencer", "Sequencer")} checked={l.sequencer} modified={mod("sequencer")} onchange={(v) => app.setLevers({ sequencer: v })} />
+			<Toggle label="FXMaster" tip={tipFor("fxmaster", "FXMaster")} checked={l.fxmaster} modified={mod("fxmaster")} onchange={(v) => app.setLevers({ fxmaster: v })} />
 		</div>
 
 		<div class="rows">
-			<Segmented label={t("tuning.video")} options={videoOptions} value={l.video} modified={mod("video")} onchange={(v) => app.setLevers({ video: v })} />
-			<Segmented label={t("tuning.prime")} options={primeOptions} value={l.prime} modified={mod("prime")} onchange={(v) => app.setLevers({ prime: v })} />
+			<Segmented label={t("tuning.video")} tip={tipFor("video", t("tuning.video"))} options={videoOptions} value={l.video} modified={mod("video")} onchange={(v) => app.setLevers({ video: v })} />
+			<Segmented label={t("tuning.prime")} tip={tipFor("prime", "Prime Performance")} options={primeOptions} value={l.prime} modified={mod("prime")} onchange={(v) => app.setLevers({ prime: v })} />
 		</div>
 
 		{#if !server}
 			<div class="rows engine">
 				<Segmented
 					label={t("tuning.angle")}
+					tip={tipFor("angle", t("tuning.angle"))}
 					options={angleOptions}
 					value={dto.settings.engine.angle}
 					onchange={(v) => app.saveSettings({ engine: { ...dto.settings.engine, angle: v } })}
 				/>
 				<Segmented
 					label={t("tuning.cache")}
+					tip={tipFor("cache", t("tuning.cache"))}
 					options={cacheOptions}
 					value={dto.settings.engine.diskCacheMb}
 					onchange={(v) => app.saveSettings({ engine: { ...dto.settings.engine, diskCacheMb: v } })}
 				/>
-				<label class="extra">
+				<label class="extra" use:tip={tipFor("extraArgs", t("tuning.extraArgs"))}>
 					<span class="mono">{t("tuning.extraArgs")}</span>
 					<input
 						class="mono"

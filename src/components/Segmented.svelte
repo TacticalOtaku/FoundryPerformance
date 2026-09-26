@@ -1,10 +1,14 @@
 <script lang="ts" generics="T extends string | number">
+	import type { TipData } from "../lib/tips";
+	import { tip as tooltip } from "../lib/tooltip.svelte";
+
 	let {
 		label,
 		options,
 		value,
 		modified = false,
 		vertical = false,
+		tip,
 		onchange
 	}: {
 		label: string;
@@ -12,11 +16,12 @@
 		value: T;
 		modified?: boolean;
 		vertical?: boolean;
+		tip?: TipData;
 		onchange: (v: T) => void;
 	} = $props();
 </script>
 
-<div class="seg" class:vertical role="radiogroup" aria-label={label}>
+<div class="seg" class:vertical role="radiogroup" aria-label={label} use:tooltip={tip}>
 	<span class="lbl mono">{label}{#if modified}<i class="dot" aria-hidden="true"></i>{/if}</span>
 	<div class="opts">
 		{#each options as o (o.value)}

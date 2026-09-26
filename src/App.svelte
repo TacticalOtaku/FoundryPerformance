@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TitleBar from "./components/TitleBar.svelte";
+	import Tooltip from "./components/Tooltip.svelte";
 	import MainScreen from "./screens/MainScreen.svelte";
 	import SlotEditor from "./screens/SlotEditor.svelte";
 	import TuningScreen from "./screens/TuningScreen.svelte";
@@ -33,6 +34,7 @@
 		{/if}
 	</main>
 </div>
+<Tooltip />
 
 <style>
 	.frame {

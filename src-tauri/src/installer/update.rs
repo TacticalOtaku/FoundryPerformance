@@ -155,6 +155,18 @@ mod tests {
         assert!(!is_newer(cur, &Manifest { version: "garbage".into(), ..manifest() }));
     }
 
+    /// Сквозная проверка конвейера релиза на локальной сборке:
+    /// `npm run dist` → `tauri signer sign --app-version` → `node scripts/make-manifest.mjs`,
+    /// затем `cargo test local_release_verifies -- --ignored`.
+    #[test]
+    #[ignore]
+    fn local_release_verifies() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../dist-release");
+        let m: Manifest = serde_json::from_str(&fs::read_to_string(dir.join("latest.json")).unwrap()).unwrap();
+        let exe = fs::read(dir.join(format!("FoundryPerformance-{}.exe", m.version))).unwrap();
+        assert_eq!(verify(&exe, &m, PUBLIC_KEY), Ok(()));
+    }
+
     #[test]
     fn manifest_parses_feed_json() {
         let m: Manifest = serde_json::from_str(r#"{"version":"0.2.0","url":"u","sha256":"s","signature":"g"}"#).unwrap();

@@ -1,5 +1,8 @@
 pub mod engine_flags;
+pub mod gpu;
+pub mod locale;
 pub mod model;
+pub mod probe;
 pub mod profile;
 pub mod store;
 

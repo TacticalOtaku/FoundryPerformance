@@ -2,6 +2,7 @@ pub mod agent;
 pub mod commands;
 pub mod engine_flags;
 pub mod gpu;
+pub mod installer;
 pub mod locale;
 pub mod model;
 pub mod probe;

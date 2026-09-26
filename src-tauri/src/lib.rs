@@ -13,13 +13,31 @@ pub mod telemetry;
 pub mod tray;
 pub mod windows;
 
+use installer::mode::Mode;
 use state::{AppState, Data};
 use std::sync::Mutex;
 use tauri::{Manager, RunEvent, WindowEvent};
 
 pub fn run() {
+    // Без WebView2 окно не нарисовать — спрашиваем системным диалогом и выходим
+    if !installer::webview2::installed() {
+        installer::webview2::prompt_download(locale::effective(model::Locale::Auto));
+        return;
+    }
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let exe = std::env::current_exe().ok();
+    let exe_dir = exe.as_deref().and_then(std::path::Path::parent).map(std::path::Path::to_path_buf).unwrap_or_default();
+    let mode = installer::mode::detect(&args, &exe_dir, cfg!(debug_assertions));
+    if mode == Mode::Launcher {
+        if let Some(e) = &exe {
+            installer::selfreplace::cleanup(e);
+        }
+    }
+
     let app = tauri::Builder::default()
-        .setup(|app| {
+        .plugin(tauri_plugin_dialog::init())
+        .setup(move |app| {
+            app.manage(installer::commands::ModeState { mode });
             let store = store::Store::new(store::Store::default_dir());
             let gpu = gpu::detect();
             let (settings, n1) = store.load_settings(gpu::recommend(gpu.as_ref()));
@@ -38,9 +56,14 @@ pub fn run() {
                     session_fallback_done: false,
                 }),
             });
+            // Установщик и удаление — только окно, без трея и игры
+            if mode != Mode::Launcher {
+                windows::open_launcher(app.handle())?;
+                return Ok(());
+            }
             tray::create(app.handle(), lang)?;
-            match commands::parse_cli(std::env::args().skip(1)) {
-                Some((url, mode)) => commands::launch_adhoc(app.handle(), &app.state::<AppState>(), &url, mode)?,
+            match commands::parse_cli(args.clone().into_iter()) {
+                Some((url, launch_mode)) => commands::launch_adhoc(app.handle(), &app.state::<AppState>(), &url, launch_mode)?,
                 None => windows::open_launcher(app.handle())?,
             }
             Ok(())
@@ -71,7 +94,13 @@ pub fn run() {
             commands::probe_server,
             commands::launch,
             commands::clear_notice,
-            commands::report_telemetry
+            commands::report_telemetry,
+            installer::commands::get_mode,
+            installer::commands::pick_install_dir,
+            installer::commands::check_install_dir,
+            installer::commands::install,
+            installer::commands::open_installed,
+            installer::commands::uninstall
         ])
         .build(tauri::generate_context!())
         .expect("error while building Foundry Performance");

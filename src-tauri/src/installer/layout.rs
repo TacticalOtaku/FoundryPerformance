@@ -14,6 +14,16 @@ pub fn default_dir() -> PathBuf {
     base.join("Programs").join("FoundryPerformance")
 }
 
+/// Из «Обзора» обычно выбирают родительскую папку (`D:\Games`) — дописываем свою подпапку.
+pub fn for_picked(picked: &Path) -> PathBuf {
+    let named_ours = picked.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("FoundryPerformance"));
+    if named_ours {
+        picked.to_path_buf()
+    } else {
+        picked.join("FoundryPerformance")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallManifest {
@@ -47,6 +57,13 @@ mod tests {
     fn missing_manifest_is_none() {
         let d = tempfile::tempdir().unwrap();
         assert_eq!(read_manifest(d.path()), None);
+    }
+
+    #[test]
+    fn picked_folder_gets_product_subfolder() {
+        assert_eq!(for_picked(Path::new(r"D:\Games")), PathBuf::from(r"D:\Games\FoundryPerformance"));
+        assert_eq!(for_picked(Path::new(r"D:\Games\FoundryPerformance")), PathBuf::from(r"D:\Games\FoundryPerformance"));
+        assert_eq!(for_picked(Path::new(r"D:\Games\foundryperformance")), PathBuf::from(r"D:\Games\foundryperformance"));
     }
 
     #[test]

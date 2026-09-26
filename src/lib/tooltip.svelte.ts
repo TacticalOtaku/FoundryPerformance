@@ -1,3 +1,4 @@
+import { untrack } from "svelte";
 import { t } from "./i18n.svelte";
 import { TIP_IMPACT, type TipData, type TipKey } from "./tips";
 
@@ -27,6 +28,8 @@ export function tipFor(key: TipKey, title: string): TipData {
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
+
+const sameTip = (a: TipData, b: TipData) => a.title === b.title && a.body === b.body && a.fps === b.fps && a.look === b.look;
 
 /** `use:tip={data}` — наведение (с задержкой) или фокус с клавиатуры показывает подсказку. */
 export function tip(node: HTMLElement, initial: TipData | undefined) {
@@ -63,7 +66,13 @@ export function tip(node: HTMLElement, initial: TipData | undefined) {
 	return {
 		update(next: TipData | undefined) {
 			data = next;
-			if (next && tipState.current?.owner === node) tipState.current = { ...tipState.current, data: next };
+			// untrack: update вызывается внутри эффекта; чтение и запись tipState.current в нём
+			// подписали бы эффект на самого себя (бесконечный цикл, если объект подсказки
+			// создаётся заново при каждой перерисовке).
+			untrack(() => {
+				const cur = tipState.current;
+				if (next && cur?.owner === node && !sameTip(cur.data, next)) tipState.current = { ...cur, data: next };
+			});
 		},
 		destroy() {
 			hide();

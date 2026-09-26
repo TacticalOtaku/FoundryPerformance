@@ -44,7 +44,8 @@
 <style>
 	.uninstall {
 		height: 100%;
-		background: var(--face);
+		background: var(--grain), var(--face);
+		box-shadow: var(--bevel);
 		padding: 28px 24px;
 		display: grid;
 		align-content: start;

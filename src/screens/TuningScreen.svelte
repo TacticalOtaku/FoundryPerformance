@@ -42,9 +42,9 @@
 
 <div class="tuning">
 	<header class="head">
-		<button class="mono back" onclick={() => app.closeScreen()}>{t("tuning.back")}</button>
+		<button class="back silk" onclick={() => app.closeScreen()}>{t("tuning.back")}</button>
 		<b>{t("tuning.title")} · {title}</b>
-		<span class="mono">
+		<span class="silk">
 			{t("tuning.profile")}
 			{t(`profile.${profileFor(dto, scope)}`)}
 			{#if n > 0}<span class="badge">{t("tuning.changed", { n })}</span>{/if}
@@ -88,8 +88,12 @@
 				tip={tipFor("maxFps", t("tuning.maxFps"))}
 				value={l.maxFps}
 				min={20}
-				max={60}
-				step={5}
+				max={240}
+				step={1}
+				marks={[240, 144, 60]}
+				presets={[60, 144, 240]}
+				editable
+				inputLabel={t("tuning.fpsInput")}
 				format={(v) => String(v)}
 				modified={mod("maxFps")}
 				onchange={(v) => app.setLevers({ maxFps: v })}
@@ -149,7 +153,7 @@
 					onchange={(v) => app.saveSettings({ engine: { ...dto.settings.engine, diskCacheMb: v } })}
 				/>
 				<label class="extra" use:tip={tipFor("extraArgs", t("tuning.extraArgs"))}>
-					<span class="mono">{t("tuning.extraArgs")}</span>
+					<span class="silk">{t("tuning.extraArgs")}</span>
 					<input
 						class="mono"
 						value={dto.settings.engine.extraArgs}
@@ -188,7 +192,8 @@
 		align-items: center;
 		gap: 16px;
 		padding: 10px 18px;
-		background: var(--face);
+		background: var(--grain), var(--face);
+		box-shadow: var(--bevel);
 	}
 	.head b {
 		font-weight: 800;
@@ -198,6 +203,14 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	.back {
+		padding: 6px 10px;
+		background: var(--face-2);
+		box-shadow: var(--lift);
+	}
+	.back:active {
+		box-shadow: var(--recess);
+	}
 	.back:hover,
 	.reset:hover {
 		color: var(--signal-text);
@@ -205,8 +218,10 @@
 	.badge {
 		margin-left: 6px;
 		padding: 1px 6px;
-		background: var(--signal);
 		color: var(--signal-ink);
+		background: var(--signal);
+		box-shadow: var(--glow-signal);
+		text-shadow: none;
 	}
 	.body {
 		display: grid;
@@ -217,7 +232,8 @@
 	.profile,
 	.toggles,
 	.rows {
-		background: var(--face);
+		background: var(--grain), var(--face);
+		box-shadow: var(--bevel);
 		padding: 12px 18px;
 	}
 	.profile {
@@ -247,8 +263,9 @@
 	.extra input {
 		height: 34px;
 		padding: 0 10px;
-		background: var(--face-2);
-		border: 1px solid var(--line);
+		background: var(--well);
+		border: 1px solid transparent;
+		box-shadow: var(--recess);
 	}
 	.hint {
 		color: var(--ink-2);

@@ -13,7 +13,7 @@
 
 <button class="toggle" use:tooltip={tip} role="switch" aria-checked={checked} onclick={() => onchange(!checked)}>
 	<span>{label}{#if modified}<i class="dot" aria-hidden="true"></i>{/if}</span>
-	<span class="sw" class:on={checked}><i></i></span>
+	<span class="state"><span class="lamp" class:on={checked}></span><span class="sw" class:on={checked}><i></i></span></span>
 </button>
 
 <style>
@@ -23,29 +23,51 @@
 		justify-content: space-between;
 		gap: 12px;
 		width: 100%;
-		padding: 4px 0;
+		padding: 5px 0;
 		text-align: left;
 	}
+	.state {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+	}
+	/* сигнальная лампа рядом с переключателем */
+	.lamp {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: var(--led-off);
+		box-shadow: var(--recess);
+		transition: background 0.15s;
+	}
+	.lamp.on {
+		background: var(--signal);
+		box-shadow: var(--glow-signal);
+	}
+	/* прорезь с ползунком */
 	.sw {
 		position: relative;
 		flex: none;
-		width: 32px;
+		width: 34px;
 		height: 16px;
-		background: var(--inverse-bg);
+		border-radius: 2px;
+		background: var(--well);
+		box-shadow: var(--recess);
 	}
 	.sw i {
 		position: absolute;
-		top: 2px;
-		left: 2px;
-		width: 12px;
-		height: 12px;
-		background: var(--inverse-fg);
-		transition:
-			transform 0.14s var(--ease-detent),
-			background 0.14s;
+		top: 1px;
+		left: 1px;
+		width: 16px;
+		height: 14px;
+		border-radius: 2px;
+		background:
+			repeating-linear-gradient(90deg, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 3px),
+			linear-gradient(var(--cap-hi), var(--cap-lo));
+		box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+		transition: translate 0.16s var(--ease-detent);
 	}
 	.sw.on i {
-		transform: translateX(16px);
-		background: var(--signal);
+		translate: 16px 0;
 	}
 </style>

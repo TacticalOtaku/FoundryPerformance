@@ -21,45 +21,76 @@
 <div class="group">
 	<button class="launch" class:safe={shift} aria-busy={busy} onclick={(e) => onlaunch(e.shiftKey)}>
 		<span>{busy ? t("main.launching") : shift ? t("main.launchSafe") : t("main.launch")}</span>
-		<span aria-hidden="true">▶</span>
+		<span class="play" aria-hidden="true"></span>
 	</button>
-	<span class="hint mono">{t("main.safeHint")}</span>
+	<span class="hint silk">{t("main.safeHint")}</span>
 </div>
 
 <style>
 	.group {
 		display: grid;
-		gap: 6px;
+		gap: 8px;
 	}
+	/* большая клавиша: выпуклая, с ходом вниз при нажатии */
 	.launch {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 15px 18px;
-		background: var(--signal);
+		padding: 14px 16px 14px 20px;
 		color: var(--signal-ink);
 		font-weight: 800;
-		font-size: 20px;
-		letter-spacing: 0.06em;
-		box-shadow: 0 3px 0 var(--signal-deep);
+		font-size: 21px;
+		letter-spacing: 0.08em;
+		background: linear-gradient(var(--signal-hi), var(--signal));
+		box-shadow:
+			inset 0 1px 0 rgb(255 255 255 / 0.35),
+			0 4px 0 var(--signal-deep),
+			0 6px 14px rgb(0 0 0 / 0.35);
 		transition:
-			transform 0.06s,
-			box-shadow 0.06s,
-			background 0.12s;
+			translate 0.07s,
+			box-shadow 0.07s,
+			background 0.15s;
+	}
+	.launch:hover {
+		background: linear-gradient(#ff8656, var(--signal-hi));
 	}
 	.launch:active {
-		transform: translateY(3px);
-		box-shadow: 0 0 0 var(--signal-deep);
+		translate: 0 4px;
+		box-shadow:
+			inset 0 1px 0 rgb(255 255 255 / 0.25),
+			0 0 0 var(--signal-deep),
+			0 2px 4px rgb(0 0 0 / 0.3);
+	}
+	.play {
+		display: grid;
+		place-items: center;
+		width: 30px;
+		height: 30px;
+		border-radius: 50%;
+		background: rgb(0 0 0 / 0.16);
+		box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.25);
+	}
+	.play::before {
+		content: "";
+		margin-left: 3px;
+		border-left: 10px solid currentColor;
+		border-top: 6px solid transparent;
+		border-bottom: 6px solid transparent;
 	}
 	.launch.safe {
-		background: var(--inverse-bg);
 		color: var(--inverse-fg);
-		box-shadow: 0 3px 0 var(--ink-3);
+		background: linear-gradient(color-mix(in srgb, var(--inverse-bg) 88%, white), var(--inverse-bg));
+		box-shadow:
+			inset 0 1px 0 rgb(255 255 255 / 0.15),
+			0 4px 0 var(--ink-3),
+			0 6px 14px rgb(0 0 0 / 0.35);
 	}
 	.launch[aria-busy="true"] {
 		cursor: progress;
 	}
 	.hint {
-		color: var(--ink-2);
+		font-size: 10px;
+		letter-spacing: 0.06em;
+		text-transform: none;
 	}
 </style>

@@ -42,7 +42,7 @@
   "tuning.title": "НАСТРОЙКА",
   "tuning.global": "ВСЕ СЕРВЕРЫ",
   "tuning.scope": "УРОВЕНЬ",
-  "tuning.back": "← НАЗАД",
+  "tuning.back": "НАЗАД",
   "tuning.profile": "ПРОФИЛЬ",
   "tuning.changed": "+{n} ИЗМ",
   "tuning.reset": "сброс к профилю",

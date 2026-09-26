@@ -24,18 +24,27 @@
 		height: 10px;
 		border-radius: 50%;
 		background: var(--led-off);
+		box-shadow: var(--recess);
 	}
-	.ok {
-		background: var(--led-ok);
+	/* горящий светодиод: линза с бликом и ореол того же цвета */
+	.ok,
+	.warn,
+	.err,
+	.pending {
+		--c: var(--led-ok);
+		background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.55), transparent 45%), var(--c);
+		box-shadow:
+			0 0 0 3px color-mix(in srgb, var(--c) calc(var(--led-halo) * 100%), transparent),
+			0 0 8px var(--c);
 	}
 	.warn {
-		background: var(--led-warn);
+		--c: var(--led-warn);
 	}
 	.err {
-		background: var(--led-err);
+		--c: var(--led-err);
 	}
 	.pending {
-		background: var(--signal);
+		--c: var(--signal);
 		animation: blink 0.9s steps(2, start) infinite;
 	}
 	@keyframes blink {

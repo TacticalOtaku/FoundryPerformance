@@ -42,7 +42,7 @@
   "tuning.title": "TUNING",
   "tuning.global": "ALL SERVERS",
   "tuning.scope": "SCOPE",
-  "tuning.back": "← BACK",
+  "tuning.back": "BACK",
   "tuning.profile": "PROFILE",
   "tuning.changed": "+{n} MOD",
   "tuning.reset": "reset to profile",

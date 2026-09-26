@@ -177,7 +177,8 @@
 	}
 	.left,
 	.right {
-		background: var(--face);
+		background: var(--grain), var(--face);
+		box-shadow: var(--bevel);
 		padding: 22px;
 		min-height: 0;
 	}
@@ -213,8 +214,9 @@
 		min-width: 0;
 		height: 38px;
 		padding: 0 10px;
-		background: var(--face-2);
-		border: 1px solid var(--line);
+		background: var(--well);
+		border: 1px solid transparent;
+		box-shadow: var(--recess);
 	}
 	input[aria-invalid="true"] {
 		border-color: var(--led-err);

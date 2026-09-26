@@ -38,8 +38,8 @@
 		style:top={`${pos.y}px`}
 		style:--arrow={`${pos.arrow}px`}
 	>
-		<b>{d.title}</b>
-		<p>{d.body}</p>
+		<b class:solo={!d.body}>{d.title}</b>
+		{#if d.body}<p>{d.body}</p>{/if}
 		{#if d.fps !== undefined || d.look !== undefined}
 			<div class="meters mono">
 				{#if d.fps !== undefined}
@@ -89,6 +89,9 @@
 		display: block;
 		font-weight: 500;
 		margin-bottom: 4px;
+	}
+	b.solo {
+		margin-bottom: 0;
 	}
 	p {
 		margin: 0;

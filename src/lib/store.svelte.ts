@@ -1,6 +1,7 @@
 import { api, windowControls } from "./api";
 import { setLocale, t } from "./i18n.svelte";
 import { baseFor, overridesFor, type Scope, withOverrides } from "./levers";
+import { probeUrl } from "./status";
 import type { Levers, Overrides, ProbeResult, ProfileId, Server, Settings, StateDto } from "./types";
 
 export type Screen = "main" | "tuning" | "slot";
@@ -34,6 +35,10 @@ class AppStore {
 		this.applyLocale();
 		this.selectedId = dto.servers[0]?.id ?? null;
 		for (const s of dto.servers) void this.probe(s);
+		// Пока лаунчер открыт, кружки сами обновляются — видно, когда ГМ запустил сервер
+		setInterval(() => {
+			for (const s of this.dto?.servers ?? []) void this.probe(s, true);
+		}, 60_000);
 	}
 
 	private applyLocale(): void {
@@ -41,9 +46,10 @@ class AppStore {
 		setLocale(pref === "auto" ? systemLocale() : pref);
 	}
 
-	async probe(s: Server): Promise<void> {
-		this.probes[s.id] = "pending";
-		this.probes[s.id] = await api.probe(s.url);
+	/** `quiet` — фоновая перепроверка без мигания «проверка…». */
+	async probe(s: Server, quiet = false): Promise<void> {
+		if (!quiet || !this.probes[s.id]) this.probes[s.id] = "pending";
+		this.probes[s.id] = await api.probe(probeUrl(s));
 	}
 
 	async dismiss(): Promise<void> {

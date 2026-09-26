@@ -4,7 +4,8 @@ export type Report =
 	| { kind: "session"; avg: number; low1: number; profile: ProfileId }
 	| { kind: "bench"; avg: number; low1: number; min: number; profile: ProfileId }
 	| { kind: "profileChanged"; profile: ProfileId }
-	| { kind: "webglLost"; early: boolean };
+	| { kind: "webglLost"; early: boolean }
+	| { kind: "foundryUrl"; url: string };
 
 /** Единственный канал наружу. Если Tauri не выдал IPC этому origin — тихо ничего не делаем. */
 export function send(report: Report): void {

@@ -54,6 +54,13 @@ pub fn build_launch(settings: &Settings, server: &Server, mode: LaunchMode) -> R
     })
 }
 
+/// Адрес игры узнаёт только агент — из интерфейса его не принимаем.
+/// Сохраняется, пока адрес входа тот же; сменили адрес — узнаем заново при следующем входе.
+pub fn merge_server(stored: Option<&Server>, incoming: Server) -> Server {
+    let game_url = stored.filter(|s| s.url == incoming.url).and_then(|s| s.game_url.clone());
+    Server { game_url, ..incoming }
+}
+
 pub fn parse_cli(args: impl Iterator<Item = String>) -> Option<(String, LaunchMode)> {
     let mut url = None;
     let mut mode = LaunchMode::Normal;
@@ -84,7 +91,7 @@ fn start_game(app: &AppHandle, state: &AppState, server: &Server, mode: LaunchMo
 
 /// Запуск из командной строки: `--open <url> [--safe|--baseline]`.
 pub fn launch_adhoc(app: &AppHandle, state: &AppState, url: &str, mode: LaunchMode) -> Result<(), String> {
-    let server = Server { id: "adhoc".into(), name: url.to_string(), url: url.to_string(), profile: None, overrides: Overrides::default() };
+    let server = Server { id: "adhoc".into(), name: url.to_string(), url: url.to_string(), profile: None, overrides: Overrides::default(), game_url: None };
     start_game(app, state, &server, mode)
 }
 
@@ -111,8 +118,8 @@ pub fn save_server(state: State<'_, AppState>, server: Server) -> Result<Vec<Ser
         return Err("err.nameRequired".into());
     }
     let url = probe::normalize_url(&server.url)?;
-    let clean = Server { name, url: url.to_string(), ..server };
     let mut d = state.data.lock().expect("state poisoned");
+    let clean = merge_server(d.servers.iter().find(|s| s.id == server.id), Server { name, url: url.to_string(), ..server });
     match d.servers.iter_mut().find(|s| s.id == clean.id) {
         Some(s) => *s = clean,
         None => d.servers.push(clean),
@@ -196,7 +203,7 @@ mod tests {
     use super::*;
 
     fn srv() -> Server {
-        Server { id: "a1".into(), name: "Страд".into(), url: "vtt.example.com/game".into(), profile: Some(ProfileId::Potato), overrides: Overrides::default() }
+        Server { id: "a1".into(), name: "Страд".into(), url: "vtt.example.com/game".into(), profile: Some(ProfileId::Potato), overrides: Overrides::default(), game_url: None }
     }
 
     #[test]
@@ -228,6 +235,17 @@ mod tests {
     fn invalid_url_is_rejected() {
         let s = Server { url: "::::".into(), ..srv() };
         assert_eq!(build_launch(&Settings::default(), &s, LaunchMode::Normal).unwrap_err(), "err.urlInvalid");
+    }
+
+    #[test]
+    fn saving_keeps_discovered_game_url_until_address_changes() {
+        let stored = Server { url: "https://www.sqyre.app/games/x/".into(), game_url: Some("https://x.sqyre.app/".into()), ..srv() };
+        let renamed = merge_server(Some(&stored), Server { name: "Новое имя".into(), game_url: None, ..stored.clone() });
+        assert_eq!(renamed.game_url.as_deref(), Some("https://x.sqyre.app/"));
+        let moved = merge_server(Some(&stored), Server { url: "https://other.host/".into(), ..stored.clone() });
+        assert_eq!(moved.game_url, None);
+        let fresh = merge_server(None, Server { game_url: Some("https://spoofed/".into()), ..srv() });
+        assert_eq!(fresh.game_url, None);
     }
 
     #[test]

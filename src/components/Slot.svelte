@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { t } from "../lib/i18n.svelte";
-	import type { LedState, ProbeResult, Server } from "../lib/types";
+	import { LED_FOR, slotStatus } from "../lib/status";
+	import type { ProbeResult, Server } from "../lib/types";
 	import Led from "./Led.svelte";
 
 	let {
@@ -21,22 +22,18 @@
 		onedit: () => void;
 	} = $props();
 
-	const led = $derived<LedState>(
-		probe === undefined ? "off" : probe === "pending" ? "pending" : !probe.reachable || !probe.foundry ? "err" : probe.active ? "ok" : "warn"
+	// Статус — цветом кружка, словами — в подсказке; в строке только адрес и мир
+	const status = $derived(slotStatus(server, probe));
+	const statusText = $derived(
+		{
+			running: t("led.ok", { world: probe && probe !== "pending" ? (probe.world ?? "") : "" }),
+			idle: t("led.idle"),
+			stopped: t("led.err"),
+			unknown: t("led.unknown"),
+			checking: t("led.pending")
+		}[status]
 	);
-	const status = $derived(
-		probe === undefined
-			? ""
-			: probe === "pending"
-				? t("led.pending")
-				: !probe.reachable
-					? t("led.err")
-					: !probe.foundry
-						? t("led.notFoundry")
-						: probe.active
-							? t("led.ok", { world: probe.world ?? "" })
-							: t("led.idle")
-	);
+	const world = $derived(status === "running" && probe && probe !== "pending" ? probe.world : null);
 	const host = $derived(server.url.replace(/^https?:\/\//, "").replace(/\/$/, ""));
 </script>
 
@@ -59,7 +56,7 @@
 	<span class="code mono">{code}</span>
 	<span class="body">
 		<span class="name">{server.name}</span>
-		<span class="meta mono">{host}{#if status}&nbsp;· {status}{/if}</span>
+		<span class="meta mono">{host}{#if world}&nbsp;· {world}{/if}</span>
 	</span>
 	<button
 		class="edit mono"
@@ -69,7 +66,7 @@
 			onedit();
 		}}>{t("slot.editShort")}</button
 	>
-	<Led state={led} label={status} />
+	<Led state={LED_FOR[status]} label={statusText} />
 </div>
 
 <style>

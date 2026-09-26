@@ -64,6 +64,7 @@ let settings: Settings = {
 
 let servers: Server[] = [
 	{ id: "a1", name: "Проклятие Страда", url: "https://vtt.example.com/", profile: null, overrides: {} },
+	{ id: "a3", name: "Aldarion", url: "https://www.sqyre.app/games/aldarionv210-3c11b9b6/", profile: null, overrides: {} },
 	{ id: "a2", name: "Ваншот по пятницам", url: "http://192.168.1.40:30000/", profile: "quality", overrides: { maxFps: 45 } }
 ];
 
@@ -99,6 +100,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 			return settings;
 		case "probe_server":
 			await delay(700);
+			if (String(args.url).includes("sqyre.app/games")) return { reachable: true, foundry: false, active: false, version: null, world: null, system: null, users: null };
 			return String(args.url).includes("192.168")
 				? { reachable: false, foundry: false, active: false, version: null, world: null, system: null, users: null }
 				: { reachable: true, foundry: true, active: true, version: "14.349", world: "strahd", system: "dnd5e", users: 3 };

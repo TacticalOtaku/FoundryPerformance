@@ -21,11 +21,10 @@
   "profile.potato.long": "Картошка",
   "profile.inherit": "КАК ВЕЗДЕ",
   "knob.label": "Профиль производительности",
-  "led.ok": "онлайн · {world}",
-  "led.idle": "сервер без мира",
-  "led.err": "нет связи",
-  "led.notFoundry": "это не Foundry",
-  "led.pending": "проверка…",
+  "led.ok": "Сервер запущен · мир «{world}»",
+  "led.idle": "Сервер запущен, мир не загружен",
+  "led.err": "Сервер выключен или недоступен",
+  "led.pending": "Проверка…",
   "slot.editShort": "ИЗМ",
   "slot.editAria": "Изменить слот {name}",
   "slot.new": "НОВЫЙ СЛОТ",
@@ -133,7 +132,7 @@
   "install.step.shortcuts": "ЯРЛЫКИ",
   "install.step.register": "РЕГИСТРАЦИЯ",
   "install.step.done": "ГОТОВО",
-  "install.err.notAbsolute": "Укажите полный путь, например D:GamesFoundryPerformance",
+  "install.err.notAbsolute": "Укажите полный путь, например D:\\Games\\FoundryPerformance",
   "install.err.root": "Не ставьте прямо в корень диска — выберите папку",
   "install.err.system": "Это системная папка Windows — выберите другую",
   "install.err.noAccess": "Нет прав на запись в эту папку. Выберите папку в своём профиле или на другом диске",
@@ -151,5 +150,6 @@
   "uninstall.running": "УДАЛЯЕМ…",
   "uninstall.done": "Удалено. Окно закроется само.",
   "uninstall.err.running": "Foundry Performance ещё запущен — закройте его и попробуйте снова",
-  "uninstall.err.files": "Не удалось удалить файлы программы"
+  "uninstall.err.files": "Не удалось удалить файлы программы",
+  "led.unknown": "Статус появится после первого входа в мир через клиент"
 }

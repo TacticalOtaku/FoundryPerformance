@@ -44,3 +44,13 @@ export function withOverrides(o: Overrides, base: Levers, patch: Partial<Levers>
 export function countOverrides(o: Overrides): number {
 	return Object.values(o).filter((v) => v !== undefined && v !== null).length;
 }
+
+export type KnobPosition = ProfileId | "manual";
+
+/** Положение ручки: пресет или «РУЧ», если на сервер действуют ручные правки (общие или его собственные). */
+export function knobPosition(dto: StateDto, serverId: string | null): KnobPosition {
+	const scope: Scope = serverId ? { kind: "server", id: serverId } : { kind: "global" };
+	const server = serverOf(dto, scope);
+	const manual = countOverrides(dto.settings.overrides) + countOverrides(server?.overrides ?? {}) > 0;
+	return manual ? "manual" : profileFor(dto, scope);
+}

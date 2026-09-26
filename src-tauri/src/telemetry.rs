@@ -9,6 +9,8 @@ pub enum Report {
     Bench { avg: f32, low1: f32, min: f32, profile: ProfileId },
     ProfileChanged { profile: ProfileId },
     WebglLost { early: bool },
+    /// Агент загрузился в мир: это настоящий адрес Foundry (для хостингов он отличается от адреса входа).
+    FoundryUrl { url: String },
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -28,6 +30,9 @@ pub fn validate(r: &Report) -> bool {
         Report::Session { avg, low1, .. } => fps_ok(*avg) && fps_ok(*low1),
         Report::Bench { avg, low1, min, .. } => fps_ok(*avg) && fps_ok(*low1) && fps_ok(*min),
         Report::ProfileChanged { .. } | Report::WebglLost { .. } => true,
+        Report::FoundryUrl { url } => {
+            url.len() <= 2048 && (url.starts_with("https://") || url.starts_with("http://")) && crate::probe::normalize_url(url).is_ok()
+        }
     }
 }
 
@@ -66,6 +71,16 @@ pub fn apply(
             );
         }
         Report::WebglLost { early: false } => {}
+        Report::FoundryUrl { ref url } => {
+            let Some(s) = servers.iter_mut().find(|s| s.id == server_id) else { return fx };
+            let (Ok(game), Ok(slot)) = (crate::probe::normalize_url(url), crate::probe::normalize_url(&s.url)) else { return fx };
+            // Прямой адрес Foundry в слоте — отдельный адрес игры не нужен
+            let game = (game != slot).then(|| game.to_string());
+            if s.game_url != game {
+                s.game_url = game;
+                fx.servers = true;
+            }
+        }
     }
     fx
 }
@@ -75,7 +90,7 @@ mod tests {
     use super::*;
 
     fn srv(id: &str) -> Server {
-        Server { id: id.into(), name: "S".into(), url: "https://s".into(), profile: None, overrides: Overrides::default() }
+        Server { id: id.into(), name: "S".into(), url: "https://s".into(), profile: None, overrides: Overrides::default(), game_url: None }
     }
 
     #[test]
@@ -111,6 +126,30 @@ mod tests {
         assert_eq!(servers[0].profile, Some(ProfileId::Potato));
         let fx = apply(&Report::ProfileChanged { profile: ProfileId::Potato }, "adhoc", 0, &mut stats, &mut servers, &mut settings);
         assert!(!fx.servers);
+    }
+
+    #[test]
+    fn foundry_url_is_remembered_only_when_it_differs_from_the_slot() {
+        let mut servers = vec![Server { url: "https://www.sqyre.app/games/x/".into(), ..srv("a") }];
+        let (mut stats, mut settings) = (BTreeMap::new(), Settings::default());
+        let report = Report::FoundryUrl { url: "https://x.sqyre.app/game".into() };
+        let fx = apply(&report, "a", 0, &mut stats, &mut servers, &mut settings);
+        assert!(fx.servers);
+        assert_eq!(servers[0].game_url.as_deref(), Some("https://x.sqyre.app/"));
+        // тот же адрес повторно — ничего не пишем
+        assert!(!apply(&report, "a", 0, &mut stats, &mut servers, &mut settings).servers);
+
+        let mut direct = vec![Server { url: "https://vtt.example.com/".into(), ..srv("b") }];
+        let same = Report::FoundryUrl { url: "https://vtt.example.com/game".into() };
+        assert!(!apply(&same, "b", 0, &mut stats, &mut direct, &mut settings).servers);
+        assert_eq!(direct[0].game_url, None);
+    }
+
+    #[test]
+    fn foundry_url_must_be_http() {
+        assert!(validate(&Report::FoundryUrl { url: "https://x.sqyre.app/game".into() }));
+        assert!(!validate(&Report::FoundryUrl { url: "javascript:alert(1)".into() }));
+        assert!(!validate(&Report::FoundryUrl { url: "x".repeat(3000) }));
     }
 
     #[test]

@@ -220,6 +220,9 @@ function start(boot: Boot): void {
 		(hooks) => {
 			hooks.once("ready", async () => {
 				readyAt = performance.now();
+				// Настоящий адрес Foundry: у хостингов он отличается от страницы входа.
+				// Без query — там бывают токены сессии.
+				send({ kind: "foundryUrl", url: location.origin + location.pathname });
 				video.setMode(levers.video);
 				await applySettings();
 				attachTicker();

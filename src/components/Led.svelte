@@ -1,12 +1,23 @@
 <script lang="ts">
+	import { tip } from "../lib/tooltip.svelte";
 	import type { LedState } from "../lib/types";
 
 	let { state, label }: { state: LedState; label: string } = $props();
 </script>
 
-<span class="led {state}" role="img" aria-label={label} title={label}></span>
+<span class="hit" use:tip={label ? { title: label, body: "" } : undefined}>
+	<span class="led {state}" role="img" aria-label={label}></span>
+</span>
 
 <style>
+	/* Кружок 10 px — наводить на него трудно, поэтому зона наведения шире */
+	.hit {
+		display: grid;
+		place-items: center;
+		width: 22px;
+		height: 22px;
+		margin: -6px;
+	}
 	.led {
 		flex: none;
 		width: 10px;

@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn servers_and_stats_roundtrip() {
         let (_d, s) = tmp();
-        let srv = vec![Server { id: "a".into(), name: "A".into(), url: "https://a".into(), profile: None, overrides: Overrides::default() }];
+        let srv = vec![Server { id: "a".into(), name: "A".into(), url: "https://a".into(), profile: None, overrides: Overrides::default(), game_url: None }];
         s.save_servers(&srv).unwrap();
         assert_eq!(s.load_servers().0, srv);
 

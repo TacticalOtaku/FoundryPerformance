@@ -181,6 +181,10 @@ pub struct Server {
     pub profile: Option<ProfileId>,
     #[serde(default)]
     pub overrides: Overrides,
+    /// Настоящий адрес Foundry, если вход идёт через страницу хостинга (Sqyre и т.п.).
+    /// Узнаётся от агента при первом входе в мир; по нему проверяется статус сервера.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

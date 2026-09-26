@@ -28,6 +28,8 @@ export interface Server {
 	url: string;
 	profile: ProfileId | null;
 	overrides: Overrides;
+	/** Настоящий адрес Foundry, если вход через хостинг; узнаётся агентом. */
+	gameUrl?: string | null;
 }
 
 export interface FpsSummary {

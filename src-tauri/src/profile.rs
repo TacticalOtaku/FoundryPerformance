@@ -119,7 +119,7 @@ mod tests {
     use super::*;
 
     fn server(profile: Option<ProfileId>, overrides: Overrides) -> Server {
-        Server { id: "s1".into(), name: "S".into(), url: "https://x".into(), profile, overrides }
+        Server { id: "s1".into(), name: "S".into(), url: "https://x".into(), profile, overrides, game_url: None }
     }
 
     #[test]

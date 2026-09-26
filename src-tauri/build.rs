@@ -9,6 +9,12 @@ fn main() {
             "launch",
             "clear_notice",
             "report_telemetry",
+            "get_mode",
+            "pick_install_dir",
+            "check_install_dir",
+            "install",
+            "open_installed",
+            "uninstall",
         ]),
     ))
     .expect("failed to run tauri-build");

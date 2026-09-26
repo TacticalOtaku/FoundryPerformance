@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-installed"
+description = "Enables the open_installed command without any pre-configured scope."
+commands.allow = ["open_installed"]
+
+[[permission]]
+identifier = "deny-open-installed"
+description = "Denies the open_installed command without any pre-configured scope."
+commands.deny = ["open_installed"]

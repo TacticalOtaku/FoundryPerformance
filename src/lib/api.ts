@@ -1,4 +1,4 @@
-import type { ProbeResult, Server, Settings, StateDto } from "./types";
+import type { InstallProgress, ModeDto, ProbeResult, Server, Settings, StateDto } from "./types";
 
 const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -20,6 +20,24 @@ export const api = {
 	probe: (url: string) => call<ProbeResult>("probe_server", { url }),
 	launch: (serverId: string, safeMode: boolean) => call<void>("launch", { serverId, safeMode }),
 	clearNotice: () => call<void>("clear_notice")
+};
+
+export const setupApi = {
+	getMode: () => call<ModeDto>("get_mode"),
+	pickDir: (current: string) => call<string | null>("pick_install_dir", { current }),
+	checkDir: (dir: string) => call<void>("check_install_dir", { dir }),
+	install: (opts: { dir: string; desktop: boolean; launch: boolean }) => call<void>("install", { opts }),
+	openInstalled: () => call<void>("open_installed"),
+	uninstall: (wipeData: boolean) => call<void>("uninstall", { wipeData }),
+	/** Подписка на прогресс установки; возвращает функцию отписки. */
+	async onProgress(cb: (p: InstallProgress) => void): Promise<() => void> {
+		if (inTauri) {
+			const { listen } = await import("@tauri-apps/api/event");
+			return listen<InstallProgress>("install-progress", (e) => cb(e.payload));
+		}
+		const { mockOnProgress } = await import("./mock");
+		return mockOnProgress(cb);
+	}
 };
 
 async function currentWindow() {

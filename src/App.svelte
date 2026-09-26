@@ -1,12 +1,33 @@
 <script lang="ts">
 	import TitleBar from "./components/TitleBar.svelte";
 	import Tooltip from "./components/Tooltip.svelte";
+	import InstallScreen from "./screens/InstallScreen.svelte";
 	import MainScreen from "./screens/MainScreen.svelte";
 	import SlotEditor from "./screens/SlotEditor.svelte";
 	import TuningScreen from "./screens/TuningScreen.svelte";
+	import UninstallScreen from "./screens/UninstallScreen.svelte";
+	import { setupApi } from "./lib/api";
+	import { setLocale, t } from "./lib/i18n.svelte";
 	import { app } from "./lib/store.svelte";
+	import type { ModeDto } from "./lib/types";
 
-	void app.load();
+	// Режим решает Rust: тот же exe — установщик, удаление или лаунчер
+	let mode = $state<ModeDto | null>(null);
+	void setupApi.getMode().then((m) => {
+		mode = m;
+		if (m.mode === "launcher") void app.load();
+		else setLocale(navigator.language.toLowerCase().startsWith("ru") ? "ru" : "en");
+	});
+
+	const channel = $derived(
+		mode?.mode === "install" && mode.install
+			? `${t("install.channel")} · v${mode.install.currentVersion}`
+			: mode?.mode === "uninstall"
+				? t("uninstall.channel")
+				: app.dto
+					? `v${app.dto.version}`
+					: ""
+	);
 
 	$effect(() => {
 		const pref = app.dto?.settings.theme ?? "auto";
@@ -21,9 +42,13 @@
 </script>
 
 <div class="frame">
-	<TitleBar channel={app.dto ? `v${app.dto.version}` : ""} />
+	<TitleBar {channel} />
 	<main class="screen">
-		{#if !app.dto}
+		{#if mode?.mode === "install" && mode.install}
+			<InstallScreen info={mode.install} />
+		{:else if mode?.mode === "uninstall"}
+			<UninstallScreen />
+		{:else if !app.dto}
 			<div class="boot mono">…</div>
 		{:else if app.screen === "tuning"}
 			<TuningScreen />

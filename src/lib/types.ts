@@ -102,3 +102,8 @@ export interface InstallProgress {
 	step: InstallStep;
 	pct: number;
 }
+
+export interface UpdateInfo {
+	version: string;
+	notes: string;
+}

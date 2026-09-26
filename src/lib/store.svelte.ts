@@ -1,8 +1,8 @@
-import { api, windowControls } from "./api";
+import { api, updateApi, windowControls } from "./api";
 import { setLocale, t } from "./i18n.svelte";
 import { baseFor, overridesFor, type Scope, withOverrides } from "./levers";
 import { probeUrl } from "./status";
-import type { Levers, Overrides, ProbeResult, ProfileId, Server, Settings, StateDto } from "./types";
+import type { Levers, Overrides, ProbeResult, ProfileId, Server, Settings, StateDto, UpdateInfo } from "./types";
 
 export type Screen = "main" | "tuning" | "slot";
 
@@ -18,6 +18,10 @@ class AppStore {
 	probes = $state<Record<string, ProbeResult | "pending">>({});
 	error = $state<string | null>(null);
 	launching = $state(false);
+	/** Доступное обновление (null — нет или проверка не удалась). */
+	update = $state<UpdateInfo | null>(null);
+	/** Проценты загрузки обновления; null — не качаем. */
+	updating = $state<number | null>(null);
 
 	get selected(): Server | null {
 		return this.dto?.servers.find((s) => s.id === this.selectedId) ?? null;
@@ -35,6 +39,7 @@ class AppStore {
 		this.applyLocale();
 		this.selectedId = dto.servers[0]?.id ?? null;
 		for (const s of dto.servers) void this.probe(s);
+		void updateApi.check().then((u) => (this.update = u)).catch(() => {});
 		// Пока лаунчер открыт, кружки сами обновляются — видно, когда ГМ запустил сервер
 		setInterval(() => {
 			for (const s of this.dto?.servers ?? []) void this.probe(s, true);
@@ -153,6 +158,22 @@ class AppStore {
 
 	async resetOverrides(): Promise<void> {
 		await this.saveOverrides({});
+	}
+
+	async applyUpdate(): Promise<void> {
+		if (this.updating !== null) return;
+		this.updating = 0;
+		this.error = null;
+		const off = await updateApi.onProgress((pct) => (this.updating = pct));
+		try {
+			// при успехе Rust запускает новую версию и закрывает эту
+			await updateApi.apply();
+		} catch (e) {
+			this.error = String(e);
+			this.updating = null;
+		} finally {
+			off();
+		}
 	}
 
 	async launch(safe: boolean): Promise<void> {

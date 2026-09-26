@@ -1,4 +1,4 @@
-import type { InstallProgress, ModeDto, ProbeResult, Server, Settings, StateDto } from "./types";
+import type { InstallProgress, ModeDto, ProbeResult, Server, Settings, StateDto, UpdateInfo } from "./types";
 
 const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -37,6 +37,20 @@ export const setupApi = {
 		}
 		const { mockOnProgress } = await import("./mock");
 		return mockOnProgress(cb);
+	}
+};
+
+export const updateApi = {
+	check: () => call<UpdateInfo | null>("check_update"),
+	apply: () => call<void>("apply_update"),
+	/** Проценты загрузки; возвращает функцию отписки. */
+	async onProgress(cb: (pct: number) => void): Promise<() => void> {
+		if (inTauri) {
+			const { listen } = await import("@tauri-apps/api/event");
+			return listen<number>("update-progress", (e) => cb(e.payload));
+		}
+		const { mockOnUpdateProgress } = await import("./mock");
+		return mockOnUpdateProgress(cb);
 	}
 };
 

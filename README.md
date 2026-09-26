@@ -55,20 +55,3 @@ npm run dist              # dist-release/: exe-установщик и portable-
 npm test                  # тесты агента и лаунчера
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
-
-## Выпуск новой версии
-
-Релизы собирает GitHub Actions (`.github/workflows/release.yml`) по тегу `vX.Y.Z`: тесты, exe,
-portable-архив, подпись и `latest.json` для автообновления. Установленные копии увидят
-кнопку «ОБНОВЛЕНИЕ X.Y.Z» под индикатором FPS.
-
-```bash
-npm run version:set 0.2.0
-git commit -am "release 0.2.0"
-git tag -a v0.2.0 -m "Что нового: …"   # текст тега станет описанием обновления
-git push origin main --follow-tags
-```
-
-Подпись: публичный ключ — `src-tauri/update.pub`; закрытый ключ и пароль хранятся в секретах
-репозитория `TAURI_SIGNING_PRIVATE_KEY` и `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Обновление
-ставится, только если совпали SHA-256, подпись и подписанный номер версии.

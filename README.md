@@ -66,7 +66,7 @@ portable-архив, подпись и `latest.json` для автообновл
 npm run version:set 0.2.0
 git commit -am "release 0.2.0"
 git tag -a v0.2.0 -m "Что нового: …"   # текст тега станет описанием обновления
-git push origin master --follow-tags
+git push origin main --follow-tags
 ```
 
 Подпись: публичный ключ — `src-tauri/update.pub`; закрытый ключ и пароль хранятся в секретах

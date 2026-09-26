@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "launcher",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "core:window:allow-minimize",
+    "core:window:allow-start-dragging",
+    "allow-get-state",
+    "allow-save-server",
+    "allow-delete-server",
+    "allow-save-settings",
+    "allow-probe-server",
+    "allow-launch",
+    "allow-clear-notice"
+  ]
+}

@@ -48,11 +48,17 @@ pub fn run() {
             // Пользователь закрыл лаунчер крестиком — выходим. Программный destroy()
             // при запуске игры CloseRequested не порождает.
             (windows::LAUNCHER, WindowEvent::CloseRequested { .. }) => window.app_handle().exit(0),
-            (windows::GAME, WindowEvent::Destroyed) => {
-                if let Some(s) = window.app_handle().try_state::<AppState>() {
+            (label, WindowEvent::Destroyed) if windows::is_game(label) => {
+                let app = window.app_handle();
+                let open = app.webview_windows();
+                // Sqyre и поп-ауты держат несколько окон игры — ждём закрытия последнего
+                if !windows::last_game_closed(open.keys().map(String::as_str).filter(|l| *l != label)) {
+                    return;
+                }
+                if let Some(s) = app.try_state::<AppState>() {
                     s.data.lock().expect("state poisoned").current_server = None;
                 }
-                let _ = windows::open_launcher(window.app_handle());
+                let _ = windows::open_launcher(app);
             }
             _ => {}
         })

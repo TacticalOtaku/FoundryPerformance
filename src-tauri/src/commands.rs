@@ -162,7 +162,7 @@ pub fn clear_notice(state: State<'_, AppState>) {
 
 #[tauri::command]
 pub fn report_telemetry(webview: Webview, state: State<'_, AppState>, report: telemetry::Report) -> Result<(), String> {
-    if webview.label() != windows::GAME || !telemetry::validate(&report) {
+    if !windows::is_game(webview.label()) || !telemetry::validate(&report) {
         return Err("rejected".into());
     }
     let mut guard = state.data.lock().expect("state poisoned");

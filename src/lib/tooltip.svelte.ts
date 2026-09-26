@@ -47,7 +47,13 @@ export function tip(node: HTMLElement, initial: TipData | undefined) {
 	};
 	const hide = () => {
 		clearTimeout(timer);
-		if (tipState.current?.owner === node) tipState.hide();
+		// Если элемент удаляют из DOM, focusout приходит прямо во время разборки,
+		// а менять $state в этот момент Svelte запрещает — прячем на следующем тике.
+		if (tipState.current?.owner === node) {
+			queueMicrotask(() => {
+				if (tipState.current?.owner === node) tipState.hide();
+			});
+		}
 	};
 	const onEnter = () => show(DELAY_MS);
 	const onFocus = (e: FocusEvent) => {

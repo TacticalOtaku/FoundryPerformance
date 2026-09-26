@@ -1,0 +1,62 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	height: 100%;
+	overflow: hidden;
+	background: var(--panel);
+	color: var(--ink);
+	font: 400 13px/1.4 var(--font-ui);
+	-webkit-font-smoothing: antialiased;
+	user-select: none;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+}
+
+input {
+	font: inherit;
+	color: inherit;
+	user-select: text;
+}
+
+:focus-visible {
+	outline: 2px solid var(--signal);
+	outline-offset: 2px;
+}
+
+.mono {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: 0.02em;
+}
+
+.dot {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	margin-left: 6px;
+	border-radius: 50%;
+	background: var(--signal);
+	vertical-align: middle;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		transition: none !important;
+		animation: none !important;
+	}
+}

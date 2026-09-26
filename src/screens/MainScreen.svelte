@@ -4,6 +4,7 @@
 	import Lcd from "../components/Lcd.svelte";
 	import Slot from "../components/Slot.svelte";
 	import { t } from "../lib/i18n.svelte";
+	import { tip } from "../lib/tooltip.svelte";
 	import { app } from "../lib/store.svelte";
 
 	const dto = $derived(app.dto!);
@@ -53,7 +54,20 @@
 	</section>
 
 	<aside class="right">
-		<Lcd value={lcdValue} unit="FPS" caption={lcdCaption} />
+		{#if app.updating !== null}
+			<Lcd value={app.updating} unit="%" caption={t("update.downloading")} />
+		{:else}
+			<Lcd value={lcdValue} unit="FPS" caption={lcdCaption} />
+		{/if}
+		{#if app.update && app.updating === null}
+			<button
+				class="update mono"
+				use:tip={{ title: t("update.notesTitle", { version: app.update.version }), body: app.update.notes || t("update.noNotes") }}
+				onclick={() => app.applyUpdate()}
+			>
+				<span>{t("update.available", { version: app.update.version })}</span><span aria-hidden="true">▶</span>
+			</button>
+		{/if}
 		<Knob value={profile} onchange={(p) => app.setKnob(p)} />
 		<div class="gpu mono">{gpuLine}</div>
 		<button class="tune mono" onclick={() => app.openTuning(sel ? { kind: "server", id: sel.id } : { kind: "global" })}>
@@ -115,6 +129,20 @@
 		align-content: start;
 		justify-items: stretch;
 		gap: 18px;
+	}
+	.update {
+		display: flex;
+		justify-content: space-between;
+		margin-top: -12px;
+		padding: 9px 12px;
+		background: var(--signal);
+		color: var(--signal-ink);
+		font-weight: 500;
+		box-shadow: 0 2px 0 var(--signal-deep);
+	}
+	.update:active {
+		transform: translateY(2px);
+		box-shadow: none;
 	}
 	.gpu {
 		color: var(--ink-2);

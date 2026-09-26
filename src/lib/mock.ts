@@ -1,6 +1,12 @@
 import type { InstallProgress, InstallStep, Levers, ModeDto, ProfileId, Server, Settings, StateDto } from "./types";
 
 const progressListeners = new Set<(p: InstallProgress) => void>();
+const updateListeners = new Set<(pct: number) => void>();
+
+export function mockOnUpdateProgress(cb: (pct: number) => void): () => void {
+	updateListeners.add(cb);
+	return () => updateListeners.delete(cb);
+}
 
 export function mockOnProgress(cb: (p: InstallProgress) => void): () => void {
 	progressListeners.add(cb);
@@ -131,6 +137,17 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 		}
 		case "open_installed":
 			return null;
+		case "check_update":
+			// превью кнопки обновления: ?update=1
+			return new URLSearchParams(location.search).has("update")
+				? { version: "0.2.0", notes: "Статус сервера в кружке слота. Автообновление через GitHub." }
+				: null;
+		case "apply_update":
+			for (let p = 0; p <= 100; p += 10) {
+				updateListeners.forEach((cb) => cb(p));
+				await delay(150);
+			}
+			throw "update.err.signature";
 		case "uninstall":
 			await delay(600);
 			return null;

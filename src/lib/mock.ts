@@ -1,4 +1,31 @@
-import type { Levers, ProfileId, Server, Settings, StateDto } from "./types";
+import type { InstallProgress, InstallStep, Levers, ModeDto, ProfileId, Server, Settings, StateDto } from "./types";
+
+const progressListeners = new Set<(p: InstallProgress) => void>();
+
+export function mockOnProgress(cb: (p: InstallProgress) => void): () => void {
+	progressListeners.add(cb);
+	return () => progressListeners.delete(cb);
+}
+
+/** Превью экранов установки: `?mode=install`, `?mode=install&state=upgrade|current`, `?mode=uninstall`. */
+function mockMode(): ModeDto {
+	const q = new URLSearchParams(location.search);
+	const mode = (q.get("mode") ?? "launcher") as ModeDto["mode"];
+	const state = (q.get("state") ?? "fresh") as "fresh" | "upgrade" | "current";
+	return {
+		mode,
+		install:
+			mode === "install"
+				? {
+						currentVersion: "0.1.0",
+						defaultDir: "C:\\Users\\Niki\\AppData\\Local\\Programs\\FoundryPerformance",
+						existingDir: state === "fresh" ? null : "C:\\Users\\Niki\\AppData\\Local\\Programs\\FoundryPerformance",
+						existingVersion: state === "upgrade" ? "0.0.9" : state === "current" ? "0.1.0" : null,
+						state
+					}
+				: null
+	};
+}
 
 const lv = (o: Partial<Levers>): Levers => ({
 	perfMode: 1,
@@ -79,6 +106,31 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 			console.info("[preview] launch", args);
 			return null;
 		case "clear_notice":
+			return null;
+		case "get_mode":
+			return mockMode();
+		case "pick_install_dir":
+			return "D:\\Games\\FoundryPerformance";
+		case "check_install_dir": {
+			const dir = String(args.dir).trim();
+			if (!/^[a-z]:\\/i.test(dir)) throw "install.err.notAbsolute";
+			if (/^[a-z]:\\?$/i.test(dir)) throw "install.err.root";
+			if (/^c:\\windows/i.test(dir)) throw "install.err.system";
+			return null;
+		}
+		case "install": {
+			const steps: InstallStep[] = ["check", "copy", "shortcuts", "register", "done"];
+			const pcts = [5, 30, 60, 85, 100];
+			for (let i = 0; i < steps.length; i++) {
+				progressListeners.forEach((cb) => cb({ step: steps[i], pct: pcts[i] }));
+				await delay(450);
+			}
+			return null;
+		}
+		case "open_installed":
+			return null;
+		case "uninstall":
+			await delay(600);
 			return null;
 		default:
 			throw `unknown command ${cmd}`;

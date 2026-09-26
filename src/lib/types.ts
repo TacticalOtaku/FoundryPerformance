@@ -78,3 +78,25 @@ export interface ProbeResult {
 	system: string | null;
 	users: number | null;
 }
+
+export type Mode = "launcher" | "install" | "uninstall";
+export type InstallState = "fresh" | "upgrade" | "current";
+export type InstallStep = "check" | "copy" | "shortcuts" | "register" | "done";
+
+export interface InstallInfo {
+	currentVersion: string;
+	defaultDir: string;
+	existingDir: string | null;
+	existingVersion: string | null;
+	state: InstallState;
+}
+
+export interface ModeDto {
+	mode: Mode;
+	install: InstallInfo | null;
+}
+
+export interface InstallProgress {
+	step: InstallStep;
+	pct: number;
+}

@@ -2,6 +2,10 @@
 
 Дата: 2026-09-26 · Статус: на ревью
 
+Имена: продукт «Foundry Performance», идентификатор `com.nikif.foundryperformance`,
+Rust-крейт `foundry_performance`, папки данных `FoundryPerformance`. «Пульт» — название
+визуального направления интерфейса. В шапке панели: `FOUNDRY/PERFORMANCE`.
+
 ## 1. Цель и контекст
 
 Друзья играют на тяжёлом сервере Foundry VTT **v14** через FLC (phenomen/flc). На RTX 5070 FPS

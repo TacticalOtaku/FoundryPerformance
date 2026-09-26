@@ -59,6 +59,17 @@ pub fn read_install() -> Option<(PathBuf, String)> {
     Some((PathBuf::from(dir), version))
 }
 
+/// Новый номер версии в «Приложениях Windows» после автообновления.
+pub fn set_version(version: &str) {
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    if let Ok(k) = hkcu.open_subkey_with_flags(APP_KEY, winreg::enums::KEY_SET_VALUE) {
+        let _ = k.set_value("Version", &version.to_string());
+    }
+    if let Ok(k) = hkcu.open_subkey_with_flags(UNINSTALL_KEY, winreg::enums::KEY_SET_VALUE) {
+        let _ = k.set_value("DisplayVersion", &version.to_string());
+    }
+}
+
 pub fn delete_install() {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let _ = hkcu.delete_subkey_all(UNINSTALL_KEY);

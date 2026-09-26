@@ -37,6 +37,18 @@ pub fn read_manifest(dir: &Path) -> Option<InstallManifest> {
     serde_json::from_str(&fs::read_to_string(dir.join(INSTALL_MARKER)).ok()?).ok()
 }
 
+/// После автообновления в `install.json` осталась старая версия — поправляем.
+/// `Ok(true)` — версия изменилась (надо обновить и реестр).
+pub fn bump_manifest(dir: &Path, version: &str) -> io::Result<bool> {
+    match read_manifest(dir) {
+        Some(m) if m.version != version => {
+            write_manifest(dir, &InstallManifest { version: version.to_string(), ..m })?;
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
+}
+
 pub fn write_manifest(dir: &Path, m: &InstallManifest) -> io::Result<()> {
     fs::write(dir.join(INSTALL_MARKER), serde_json::to_string_pretty(m).map_err(io::Error::other)?)
 }
@@ -57,6 +69,17 @@ mod tests {
     fn missing_manifest_is_none() {
         let d = tempfile::tempdir().unwrap();
         assert_eq!(read_manifest(d.path()), None);
+    }
+
+    #[test]
+    fn bump_updates_only_a_stale_manifest() {
+        let d = tempfile::tempdir().unwrap();
+        assert!(!bump_manifest(d.path(), "0.2.0").unwrap(), "no manifest — portable, nothing to do");
+        let m = InstallManifest { schema: 1, version: "0.1.0".into(), installed_at: 7, desktop_shortcut: true };
+        write_manifest(d.path(), &m).unwrap();
+        assert!(bump_manifest(d.path(), "0.2.0").unwrap());
+        assert_eq!(read_manifest(d.path()).unwrap(), InstallManifest { version: "0.2.0".into(), ..m });
+        assert!(!bump_manifest(d.path(), "0.2.0").unwrap());
     }
 
     #[test]

@@ -32,12 +32,18 @@ pub fn run() {
         if let Some(e) = &exe {
             installer::selfreplace::cleanup(e);
         }
+        // Первый запуск после автообновления: версия в install.json и «Приложениях Windows»
+        let version = installer::version::current().to_string();
+        if installer::layout::bump_manifest(&exe_dir, &version).unwrap_or(false) {
+            installer::registry::set_version(&version);
+        }
     }
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             app.manage(installer::commands::ModeState { mode });
+            app.manage(installer::commands::UpdateState::default());
             let store = store::Store::new(store::Store::default_dir());
             let gpu = gpu::detect();
             let (settings, n1) = store.load_settings(gpu::recommend(gpu.as_ref()));
@@ -100,7 +106,9 @@ pub fn run() {
             installer::commands::check_install_dir,
             installer::commands::install,
             installer::commands::open_installed,
-            installer::commands::uninstall
+            installer::commands::uninstall,
+            installer::commands::check_update,
+            installer::commands::apply_update
         ])
         .build(tauri::generate_context!())
         .expect("error while building Foundry Performance");

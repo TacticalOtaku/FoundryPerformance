@@ -123,3 +123,47 @@ pub fn uninstall(app: AppHandle, wipe_data: bool) -> Result<(), String> {
     exit_soon(&app, 1500);
     Ok(())
 }
+
+/// Манифест последней проверки: кнопка «Обновить» ставит ровно то, что показали.
+#[derive(Default)]
+pub struct UpdateState(pub std::sync::Mutex<Option<super::update::Manifest>>);
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateDto {
+    version: String,
+    notes: String,
+}
+
+#[tauri::command]
+pub async fn check_update(state: State<'_, UpdateState>) -> Result<Option<UpdateDto>, String> {
+    // В `tauri dev` не дёргаем GitHub на каждый перезапуск
+    if cfg!(debug_assertions) {
+        return Ok(None);
+    }
+    let Some(m) = super::update::fetch_manifest().await else { return Ok(None) };
+    if !super::update::is_newer(version::current(), &m) {
+        return Ok(None);
+    }
+    let dto = UpdateDto { version: m.version.clone(), notes: m.notes.clone() };
+    *state.0.lock().expect("update state poisoned") = Some(m);
+    Ok(Some(dto))
+}
+
+#[tauri::command]
+pub async fn apply_update(app: AppHandle, state: State<'_, UpdateState>) -> Result<(), String> {
+    let m = state.0.lock().expect("update state poisoned").clone().ok_or_else(|| "update.err.download".to_string())?;
+    let bytes = super::update::download(&m.url, |pct| {
+        let _ = app.emit("update-progress", pct);
+    })
+    .await?;
+    super::update::verify(&bytes, &m, super::update::PUBLIC_KEY)?;
+    if !super::update::is_newer(version::current(), &m) {
+        return Err("update.err.version".into());
+    }
+    let exe = std::env::current_exe().map_err(|_| "update.err.apply".to_string())?;
+    super::update::apply(&bytes, &exe)?;
+    launch(&exe)?;
+    exit_soon(&app, 300);
+    Ok(())
+}

@@ -15,6 +15,8 @@ fn main() {
             "install",
             "open_installed",
             "uninstall",
+            "check_update",
+            "apply_update",
         ]),
     ))
     .expect("failed to run tauri-build");

@@ -1,0 +1,64 @@
+name: Release
+
+# Тег v1.2.3 → сборка на Windows, подпись, релиз с latest.json для автообновления.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Tag matches app version
+        shell: pwsh
+        run: |
+          $v = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} != app version v$v — run: npm run version:set X.Y.Z" }
+
+      - run: npm ci
+      - run: npm run build:agent
+      - run: npm test
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build installer and portable
+        run: npm run dist
+
+      - name: Sign installer
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $v = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          npx tauri signer sign --app-version $v "dist-release/FoundryPerformance-$v.exe"
+
+      - name: Release notes and update feed
+        shell: bash
+        run: |
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          export RELEASE_NOTES="$(git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)')"
+          node scripts/make-manifest.mjs
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: dist-release/notes.md
+          files: |
+            dist-release/FoundryPerformance-*.exe
+            dist-release/FoundryPerformance-*-portable.zip
+            dist-release/latest.json

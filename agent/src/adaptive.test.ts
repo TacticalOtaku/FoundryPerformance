@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { type AdaptiveConfig, initAdaptive, resetTimers, stepAdaptive } from "./adaptive";
+import { type AdaptiveConfig, configFor, initAdaptive, refreshFromDeltas, resetTimers, stepAdaptive } from "./adaptive";
+import type { Levers } from "./types";
 
 const cfg: AdaptiveConfig = {
 	min: 0.7,
@@ -62,5 +63,21 @@ describe("adaptive resolution", () => {
 		const s = resetTimers(run(undefined, 0, 1500, SLOW));
 		expect(s.overSince).toBeNull();
 		expect(s.stableSince).toBeNull();
+	});
+});
+
+describe("frame target respects the monitor", () => {
+	const l = { maxFps: 144, resMin: 0.7, resMax: 1 } as Levers;
+
+	it("never targets more frames than the display can show", () => {
+		expect(configFor(l, 60).targetMs).toBeCloseTo(1000 / 60, 5);
+		expect(configFor(l, 165).targetMs).toBeCloseTo(1000 / 144, 5);
+		expect(configFor({ ...l, maxFps: 45 }, 144).targetMs).toBeCloseTo(1000 / 45, 5);
+	});
+
+	it("estimates refresh rate from animation frame intervals", () => {
+		expect(refreshFromDeltas([16.6, 16.7, 16.8, 33.4, 16.7, 16.6, 16.7])).toBe(60);
+		expect(refreshFromDeltas([6.9, 7.0, 6.9, 6.95, 13.9, 6.9])).toBe(144);
+		expect(refreshFromDeltas([])).toBe(60);
 	});
 });

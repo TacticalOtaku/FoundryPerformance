@@ -1,4 +1,4 @@
-import { configFor, initAdaptive, resetTimers, stepAdaptive } from "./adaptive";
+import { configFor, initAdaptive, refreshFromDeltas, resetTimers, stepAdaptive } from "./adaptive";
 import { runBench } from "./bench";
 import { send } from "./bridge";
 import { coreValues, defaultValues, reconcile, writePreboot } from "./client-settings";
@@ -31,10 +31,26 @@ function waitFor<T>(get: () => T | undefined, fn: (v: T) => void, timeoutMs = 12
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** ~40 кадров requestAnimationFrame → частота монитора (браузер не рисует чаще). */
+function measureRefresh(frames = 40): Promise<number> {
+	return new Promise((resolve) => {
+		const deltas: number[] = [];
+		let last = 0;
+		const tick = (t: number) => {
+			if (last) deltas.push(t - last);
+			last = t;
+			if (deltas.length < frames) requestAnimationFrame(tick);
+			else resolve(refreshFromDeltas(deltas));
+		};
+		requestAnimationFrame(tick);
+	});
+}
+
 function start(boot: Boot): void {
 	const t = strings(boot.locale);
 	let profileId: ProfileId = boot.profileId;
 	let levers = boot.presets[profileId];
+	let refreshHz = Infinity;
 	let adaptiveCfg = configFor(levers);
 	let adaptive = initAdaptive(adaptiveCfg);
 	let readyAt = 0;
@@ -152,7 +168,7 @@ function start(boot: Boot): void {
 		measureOnly = false;
 		profileId = id;
 		levers = boot.presets[id];
-		adaptiveCfg = configFor(levers);
+		adaptiveCfg = configFor(levers, refreshHz);
 		adaptive = initAdaptive(adaptiveCfg);
 		try {
 			writePreboot(localStorage, coreValues(levers));
@@ -220,6 +236,10 @@ function start(boot: Boot): void {
 		(hooks) => {
 			hooks.once("ready", async () => {
 				readyAt = performance.now();
+				void measureRefresh().then((hz) => {
+					refreshHz = hz;
+					adaptiveCfg = configFor(levers, hz);
+				});
 				// Настоящий адрес Foundry: у хостингов он отличается от страницы входа.
 				// Без query — там бывают токены сессии.
 				send({ kind: "foundryUrl", url: location.origin + location.pathname });
@@ -237,6 +257,8 @@ function start(boot: Boot): void {
 			});
 			hooks.on("canvasReady", () => {
 				attachTicker();
+				// Foundry при подготовке сцены выставляет тикеру свой maxFPS (≤ 60) — возвращаем наш потолок
+				focus.apply();
 				resolution.apply(targetScale());
 				video.sync();
 			});

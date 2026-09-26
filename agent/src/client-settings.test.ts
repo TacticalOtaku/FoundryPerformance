@@ -49,6 +49,11 @@ describe("coreValues", () => {
 		expect(v[CORE_KEYS.visionAnimation]).toBe(false);
 		expect(Object.keys(v)).toHaveLength(6);
 	});
+
+	it("keeps Foundry's own maxFPS setting within its 60 limit", () => {
+		expect(coreValues({ ...levers, maxFps: 144 })[CORE_KEYS.maxFps]).toBe(60);
+		expect(coreValues({ ...levers, maxFps: 45 })[CORE_KEYS.maxFps]).toBe(45);
+	});
 });
 
 describe("writePreboot", () => {

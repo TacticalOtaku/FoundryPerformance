@@ -10,8 +10,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
     "icon": "node scripts/make-icon.mjs && tauri icon app-icon.png",
-    "portable": "powershell -ExecutionPolicy Bypass -File scripts/package-portable.ps1",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "dist": "tauri build && powershell -ExecutionPolicy Bypass -File scripts/dist.ps1"
   },
   "dependencies": {
     "@fontsource/geologica": "^5.3.0",

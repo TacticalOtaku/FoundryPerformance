@@ -6,8 +6,17 @@
 
 ## Установка
 
-Скачайте `Foundry Performance_x.y.z_x64-setup.exe` (устанавливается без прав администратора)
-или portable-архив. Нужен WebView2 — в Windows 10/11 он уже есть.
+Скачайте `FoundryPerformance-x.y.z.exe` и запустите — это и есть установщик. Выберите папку
+(по умолчанию `%LOCALAPPDATA%\Programs\FoundryPerformance`, права администратора не нужны),
+и программа поставит себя сама: ярлык в «Пуске», по желанию — на рабочем столе, запись в
+«Приложениях Windows». Запуск нового exe поверх установленного обновляет программу.
+
+Удаление — через «Параметры → Приложения» или `FoundryPerformance.exe --uninstall`. Ваши серверы
+и настройки сохраняются, если не отметить «удалить также мои данные». Удаляются только файлы
+программы: если в папке лежит что-то ещё, папка останется.
+
+Без установки: `FoundryPerformance-x.y.z-portable.zip` — exe и пустой файл `portable` рядом с ним.
+Нужен WebView2 — в Windows 10/11 он уже есть; если нет, программа предложит его скачать.
 
 ## Как пользоваться
 
@@ -42,8 +51,7 @@ foundry-performance.exe --open <адрес> [--safe | --baseline]
 ```bash
 npm install
 npm run tauri dev         # разработка
-npm run tauri build       # установщик NSIS в src-tauri/target/release/bundle/nsis
-npm run portable          # zip в dist-portable/
+npm run dist              # dist-release/: exe-установщик и portable-архив
 npm test                  # тесты агента и лаунчера
 cargo test --manifest-path src-tauri/Cargo.toml
 ```

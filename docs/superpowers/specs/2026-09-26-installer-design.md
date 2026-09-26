@@ -92,13 +92,27 @@
   `dist-release/FoundryPerformance-<версия>-portable.zip` (exe + пустой файл `portable`).
 - Скрипт `package-portable.ps1` заменяется на `scripts/dist.ps1`.
 
-## 8. Задел под автообновление (не реализуется сейчас)
+## 8. Автообновление через GitHub Releases (утверждено 2026-09-26)
 
-- Лента `latest.json`: `{ version, url, sha256, signature, notes }`, подпись — minisign (ed25519),
-  публичный ключ вшит в exe, проверка — `minisign-verify`.
-- Поток: проверка при старте лаунчера → «ОБНОВЛЕНИЕ vY» на ЖК → загрузка во временный файл →
-  проверка SHA-256 и подписи → `selfreplace` → перезапуск.
-- Сейчас реализуются и тестируются: сравнение версий, `selfreplace`, `install.json`.
+- Репозиторий: `TacticalOtaku/FoundryPerformance` (публичный). Лента:
+  `https://github.com/TacticalOtaku/FoundryPerformance/releases/latest/download/latest.json`
+  = `{ version, notes, url, sha256, signature }`.
+- Подпись — `tauri signer` (формат minisign, ed25519): `signature` = base64 текста `.sig`,
+  подписанный комментарий содержит `version:<версия>` (`--app-version`). Публичный ключ —
+  `src-tauri/update.pub` (вшит в exe); закрытый ключ и пароль — только в секретах GitHub
+  (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) и у владельца.
+- Проверки перед заменой (любая неудача — ничего не заменяется, ключ `update.err.*` на ЖК):
+  `url` начинается с `https://github.com/TacticalOtaku/FoundryPerformance/releases/download/`;
+  SHA-256 файла = `sha256`; подпись верна для вшитого ключа; `version:` в подписанном
+  комментарии = `version` ленты; версия ленты новее текущей.
+- Поведение: лаунчер (release-сборка) при старте тихо читает ленту → под ЖК кнопка
+  «ОБНОВЛЕНИЕ X.Y.Z ▶» (подсказка — `notes`) → по нажатию загрузка с процентами на ЖК →
+  проверки → `selfreplace` → запуск новой версии и выход. Никаких фоновых установок.
+- Новая версия при первом старте синхронизирует `install.json` и `DisplayVersion` в реестре.
+- CI: `.github/workflows/release.yml` на тег `v*` (windows-latest): проверка тега = версия,
+  тесты, `npm run dist`, подпись exe, `latest.json`, публикация релиза (exe, portable-zip,
+  latest.json). Версия поднимается `npm run version:set X.Y.Z` (package.json, Cargo.toml,
+  tauri.conf.json).
 
 ## 9. Тестирование
 

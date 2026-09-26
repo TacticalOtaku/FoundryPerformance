@@ -77,7 +77,8 @@
 		display: grid;
 		place-items: center;
 		height: 100%;
-		background: var(--face);
+		background: var(--grain), var(--face);
+		box-shadow: var(--bevel);
 		color: var(--ink-2);
 	}
 </style>

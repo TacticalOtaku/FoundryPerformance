@@ -5,12 +5,13 @@
 	let { channel }: { channel: string } = $props();
 </script>
 
-<header class="bar" data-tauri-drag-region>
+<header class="bar plate" data-tauri-drag-region>
+	<span class="power" aria-hidden="true"></span>
 	<b class="brand" data-tauri-drag-region>FOUNDRY/PERFORMANCE</b>
-	<span class="mono ch" data-tauri-drag-region>{channel}</span>
+	{#if channel}<span class="tag mono" data-tauri-drag-region>{channel}</span>{/if}
 	<div class="ctl">
-		<button class="mono" aria-label={t("window.minimize")} onclick={() => windowControls.minimize()}>—</button>
-		<button class="mono close" aria-label={t("window.close")} onclick={() => windowControls.close()}>✕</button>
+		<button aria-label={t("window.minimize")} onclick={() => windowControls.minimize()}><span class="glyph min"></span></button>
+		<button class="close" aria-label={t("window.close")} onclick={() => windowControls.close()}><span class="glyph x"></span></button>
 	</div>
 </header>
 
@@ -18,35 +19,72 @@
 	.bar {
 		display: flex;
 		align-items: center;
-		gap: 14px;
+		gap: 12px;
 		height: 40px;
-		padding-left: 18px;
-		background: var(--face);
+		padding-left: 20px;
+	}
+	/* питание: горит, пока приложение открыто */
+	.power {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--led-ok);
+		box-shadow: 0 0 6px var(--led-ok);
 	}
 	.brand {
 		font-weight: 800;
 		font-size: 13px;
-		letter-spacing: 0.14em;
+		letter-spacing: 0.16em;
+		text-shadow: var(--engrave);
 	}
-	.ch {
+	.tag {
 		margin-left: auto;
+		padding: 2px 7px;
 		color: var(--ink-2);
+		background: var(--well);
+		box-shadow: var(--recess);
 	}
 	.ctl {
 		display: flex;
 		height: 100%;
+		margin-left: 12px;
 	}
 	.ctl button {
-		width: 46px;
-		height: 100%;
 		display: grid;
 		place-items: center;
+		width: 46px;
+		height: 100%;
+		color: var(--ink-2);
 	}
 	.ctl button:hover {
-		background: var(--face-2);
+		color: var(--ink);
+		background: color-mix(in srgb, var(--face) 80%, var(--ink) 8%);
 	}
 	.ctl .close:hover {
-		background: var(--signal);
 		color: var(--signal-ink);
+		background: var(--signal);
+	}
+	/* нарисованные значки вместо символов шрифта — одинаково чёткие в любой теме */
+	.glyph {
+		position: relative;
+		width: 11px;
+		height: 11px;
+	}
+	.min::before,
+	.x::before,
+	.x::after {
+		content: "";
+		position: absolute;
+		left: 0;
+		top: 5px;
+		width: 11px;
+		height: 1.5px;
+		background: currentColor;
+	}
+	.x::before {
+		rotate: 45deg;
+	}
+	.x::after {
+		rotate: -45deg;
 	}
 </style>

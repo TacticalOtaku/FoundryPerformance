@@ -1,25 +1,43 @@
 :root {
-	--panel: #d8d6d0;
-	--face: #e6e4de;
-	--face-2: #f2f0eb;
-	--ink: #2a2a28;
-	--ink-2: #6e6b64;
-	--ink-3: #9e9b93;
-	--line: #bdbab2;
+	--panel: #cfccc4;
+	--face: #e3e0d8;
+	--face-2: #eeebe4;
+	/* углублённые места: гнёзда каналов, поля ввода, прорези фейдеров */
+	--well: #d7d4cc;
+	--ink: #26251f;
+	--ink-2: #67645c;
+	--ink-3: #98958c;
+	--line: #b9b6ad;
 	--inverse-bg: #2a2a28;
 	--inverse-fg: #e6e4de;
 	--signal: #ff5a1f;
+	--signal-hi: #ff7a45;
 	--signal-deep: #b8420f;
 	--signal-ink: #1a1a18;
 	--signal-text: #b8420f;
-	--lcd-bg: #1e2a1e;
+	--lcd-bg: #16221a;
 	--lcd-fg: #b8f28a;
 	--lcd-dim: #7fa866;
-	--lcd-ghost: #2f422f;
+	--lcd-ghost: #22332a;
 	--led-ok: #3fa34d;
 	--led-warn: #e0a100;
 	--led-err: #d2361b;
-	--led-off: #bdbab2;
+	--led-off: #b3b0a7;
+
+	/* материал панели: шлифовка, фаски, тени */
+	--grain: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.11) 0 1px, transparent 1px 3px);
+	--bevel: inset 0 1px 0 rgb(255 255 255 / 0.7), inset 0 -1px 0 rgb(0 0 0 / 0.08);
+	--recess: inset 0 1px 2px rgb(0 0 0 / 0.18), 0 1px 0 rgb(255 255 255 / 0.6);
+	--lift: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 2px 4px rgb(0 0 0 / 0.14);
+	--glow-lcd: 0 0 6px rgb(184 242 138 / 0.35);
+	--glow-signal: 0 0 8px rgb(255 90 31 / 0.45);
+	--led-halo: 0.12;
+	--engrave: 0 1px 0 rgb(255 255 255 / 0.65);
+	--knurl-a: #9a978f;
+	--knurl-b: #85827a;
+	--cap-hi: #3a3936;
+	--cap-lo: #1f1e1c;
+
 	--font-ui: "Geologica", system-ui, sans-serif;
 	--font-mono: "Martian Mono", ui-monospace, Consolas, monospace;
 	--ease-detent: cubic-bezier(0.3, 1.6, 0.5, 1);
@@ -28,16 +46,32 @@
 }
 
 :root[data-theme="night"] {
-	--panel: #111110;
+	--panel: #121211;
 	--face: #1c1c1a;
-	--face-2: #262623;
-	--ink: #e6e4de;
+	--face-2: #262522;
+	--well: #161614;
+	--ink: #e6e3da;
 	--ink-2: #a19e96;
 	--ink-3: #6e6b64;
 	--line: #3a3a36;
 	--inverse-bg: #e6e4de;
 	--inverse-fg: #1c1c1a;
 	--signal-text: #ff7a45;
+	--lcd-bg: #0e170f;
+	--lcd-ghost: #1a2a1c;
 	--led-off: #3a3a36;
+
+	--grain: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.014) 0 1px, transparent 1px 3px);
+	--bevel: inset 0 1px 0 rgb(255 255 255 / 0.05), inset 0 -1px 0 rgb(0 0 0 / 0.5);
+	--recess: inset 0 1px 3px rgb(0 0 0 / 0.7), 0 1px 0 rgb(255 255 255 / 0.04);
+	--lift: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 3px 6px rgb(0 0 0 / 0.5);
+	--glow-lcd: 0 0 8px rgb(184 242 138 / 0.55);
+	--glow-signal: 0 0 10px rgb(255 90 31 / 0.6);
+	--led-halo: 0.2;
+	--engrave: 0 -1px 0 rgb(0 0 0 / 0.7);
+	--knurl-a: #3a3a36;
+	--knurl-b: #282826;
+	--cap-hi: #efede7;
+	--cap-lo: #a9a69e;
 	color-scheme: dark;
 }

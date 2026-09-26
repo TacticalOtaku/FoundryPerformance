@@ -98,7 +98,8 @@
 	.head,
 	.fields,
 	.actions {
-		background: var(--face);
+		background: var(--grain), var(--face);
+		box-shadow: var(--bevel);
 		padding: 14px 18px;
 	}
 	.head b {
@@ -118,8 +119,9 @@
 	input {
 		height: 42px;
 		padding: 0 12px;
-		background: var(--face-2);
-		border: 1px solid var(--line);
+		background: var(--well);
+		border: 1px solid transparent;
+		box-shadow: var(--recess);
 		font-size: 15px;
 	}
 	input[aria-invalid="true"] {

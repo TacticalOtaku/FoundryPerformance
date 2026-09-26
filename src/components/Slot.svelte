@@ -70,29 +70,38 @@
 </div>
 
 <style>
+	/* Канал: гнездо в панели; выбранный — подсветка сбоку, как у активного канала пульта */
 	.slot {
 		display: grid;
-		grid-template-columns: 34px minmax(0, 1fr) auto 12px;
+		grid-template-columns: 38px minmax(0, 1fr) auto 12px;
 		align-items: center;
 		gap: 12px;
-		padding: 12px 14px;
-		background: var(--face-2);
+		padding: 11px 14px 11px 12px;
+		background: var(--grain), var(--face-2);
+		box-shadow: var(--bevel);
 		cursor: pointer;
-		transition: background 0.12s;
+		transition:
+			background-color 0.15s,
+			box-shadow 0.15s;
 	}
 	.slot:hover {
-		background: var(--face);
+		background: var(--grain), color-mix(in srgb, var(--face-2) 85%, var(--ink) 4%);
 	}
 	.slot.selected {
-		background: var(--inverse-bg);
-		color: var(--inverse-fg);
+		box-shadow:
+			inset 3px 0 0 var(--signal),
+			inset 12px 0 18px -12px color-mix(in srgb, var(--signal) 45%, transparent),
+			var(--bevel);
 	}
 	.code {
+		padding: 3px 0;
+		text-align: center;
 		color: var(--ink-2);
+		background: var(--well);
+		box-shadow: var(--recess);
 	}
-	.selected .code,
-	.selected .meta {
-		color: var(--ink-3);
+	.selected .code {
+		color: var(--signal-text);
 	}
 	.body {
 		display: grid;
@@ -112,10 +121,14 @@
 		text-overflow: ellipsis;
 	}
 	.edit {
-		padding: 4px 8px;
-		border: 1px solid var(--line);
+		padding: 4px 9px;
+		background: var(--face);
+		box-shadow: var(--lift);
 		opacity: 0;
 		transition: opacity 0.12s;
+	}
+	.edit:active {
+		box-shadow: var(--recess);
 	}
 	.slot:hover .edit,
 	.slot:focus-within .edit,

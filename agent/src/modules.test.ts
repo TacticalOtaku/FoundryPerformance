@@ -10,9 +10,9 @@ describe("moduleValues", () => {
 		expect(v).toEqual({ "sequencer.effectsEnabled": false });
 	});
 
-	it("inverts fxmaster disable flag", () => {
-		const v = moduleValues((id) => id === "fxmaster", { ...base, fxmaster: true });
-		expect(v["fxmaster.disableAll"]).toBe(false);
+	it("maps fxmaster onto its client enable flag (v8)", () => {
+		expect(moduleValues((id) => id === "fxmaster", { ...base, fxmaster: true })).toEqual({ "fxmaster.enable": true });
+		expect(moduleValues((id) => id === "fxmaster", base)).toEqual({ "fxmaster.enable": false });
 	});
 
 	it("returns nothing when no modules are active", () => {

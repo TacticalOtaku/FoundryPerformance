@@ -1,6 +1,7 @@
 pub mod engine_flags;
 pub mod model;
 pub mod profile;
+pub mod store;
 
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 

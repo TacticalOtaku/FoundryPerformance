@@ -20,12 +20,14 @@ const levers: Levers = {
 	prime: "medium"
 };
 
-function fakeGame(registered: Record<string, unknown>, failing: string[] = []) {
+function fakeGame(registered: Record<string, unknown>, failing: string[] = [], worldScoped: string[] = []) {
 	const values = new Map(Object.entries(registered));
 	const sets: string[] = [];
 	const game: SettingsHost = {
 		settings: {
-			settings: new Map([...values.keys()].map((k) => [k, { default: `default-of-${k}` }])),
+			settings: new Map(
+				[...values.keys()].map((k) => [k, { default: `default-of-${k}`, scope: worldScoped.includes(k) ? "world" : "client" }])
+			),
 			get: (ns, key) => values.get(`${ns}.${key}`),
 			set: async (ns, key, v) => {
 				const full = `${ns}.${key}`;
@@ -73,6 +75,13 @@ describe("reconcile", () => {
 		const r = await reconcile(game, { "core.maxFPS": 240, "core.mipmap": false });
 		expect(r.failed).toEqual(["core.maxFPS"]);
 		expect(r.applied).toEqual(["core.mipmap"]);
+	});
+
+	it("never touches world-scoped settings (a GM would change them for everyone)", async () => {
+		const { game, sets } = fakeGame({ "fxmaster.disableAll": false, "core.mipmap": true }, [], ["fxmaster.disableAll"]);
+		const r = await reconcile(game, { "fxmaster.disableAll": true, "core.mipmap": false });
+		expect(sets).toEqual(["core.mipmap"]);
+		expect(r.missing).toEqual(["fxmaster.disableAll"]);
 	});
 });
 

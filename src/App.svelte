@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TitleBar from "./components/TitleBar.svelte";
+	import VersionTag from "./components/VersionTag.svelte";
 	import Tooltip from "./components/Tooltip.svelte";
 	import InstallScreen from "./screens/InstallScreen.svelte";
 	import MainScreen from "./screens/MainScreen.svelte";
@@ -24,9 +25,7 @@
 			? `${t("install.channel")} · v${mode.install.currentVersion}`
 			: mode?.mode === "uninstall"
 				? t("uninstall.channel")
-				: app.dto
-					? `v${app.dto.version}`
-					: ""
+				: ""
 	);
 
 	$effect(() => {
@@ -42,7 +41,11 @@
 </script>
 
 <div class="frame">
-	<TitleBar {channel} />
+	{#if mode?.mode === "launcher" && app.dto}
+		<TitleBar {channel}><VersionTag version={app.dto.version} /></TitleBar>
+	{:else}
+		<TitleBar {channel} />
+	{/if}
 	<main class="screen">
 		{#if mode?.mode === "install" && mode.install}
 			<InstallScreen info={mode.install} />

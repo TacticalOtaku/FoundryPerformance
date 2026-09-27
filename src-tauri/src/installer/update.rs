@@ -63,10 +63,11 @@ fn client(timeout_s: u64) -> Option<reqwest::Client> {
         .ok()
 }
 
-/// Тихая проверка: нет сети или релизов — просто `None`.
-pub async fn fetch_manifest() -> Option<Manifest> {
-    let resp = client(8)?.get(FEED_URL).send().await.ok()?.error_for_status().ok()?;
-    resp.json::<Manifest>().await.ok()
+/// Лента последнего релиза; ошибка — i18n-ключ (нет сети, нет релизов, битый JSON).
+pub async fn fetch_manifest() -> Result<Manifest, &'static str> {
+    let fail = |_| "update.err.check";
+    let resp = client(8).ok_or("update.err.check")?.get(FEED_URL).send().await.map_err(fail)?.error_for_status().map_err(fail)?;
+    resp.json::<Manifest>().await.map_err(fail)
 }
 
 pub async fn download(url: &str, progress: impl Fn(u8)) -> Result<Vec<u8>, &'static str> {

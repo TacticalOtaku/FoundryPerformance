@@ -38,8 +38,13 @@
 		style:top={`${pos.y}px`}
 		style:--arrow={`${pos.arrow}px`}
 	>
-		<b class:solo={!d.body}>{d.title}</b>
+		<b class:solo={!d.body && !d.lines?.length}>{d.title}</b>
 		{#if d.body}<p>{d.body}</p>{/if}
+		{#if d.lines?.length}
+			<ul>
+				{#each d.lines as line, i (i)}<li>{line}</li>{/each}
+			</ul>
+		{/if}
 		{#if d.fps !== undefined || d.look !== undefined}
 			<div class="meters mono">
 				{#if d.fps !== undefined}
@@ -64,7 +69,7 @@
 		position: fixed;
 		z-index: 100;
 		width: max-content;
-		max-width: 290px;
+		max-width: 320px;
 		padding: 10px 12px;
 		background: var(--inverse-bg);
 		color: var(--inverse-fg);
@@ -98,6 +103,30 @@
 		font-size: 12px;
 		line-height: 1.45;
 		color: var(--ink-3);
+	}
+	ul {
+		display: grid;
+		gap: 5px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		font-size: 12px;
+		line-height: 1.45;
+		color: var(--ink-3);
+	}
+	li {
+		position: relative;
+		padding-left: 12px;
+	}
+	/* маркер — сигнальная риска, как метки на шкале */
+	li::before {
+		content: "";
+		position: absolute;
+		left: 0;
+		top: 0.7em;
+		width: 6px;
+		height: 1.5px;
+		background: var(--signal);
 	}
 	.meters {
 		display: grid;

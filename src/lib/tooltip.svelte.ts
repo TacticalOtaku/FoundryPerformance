@@ -29,7 +29,8 @@ export function tipFor(key: TipKey, title: string): TipData {
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-const sameTip = (a: TipData, b: TipData) => a.title === b.title && a.body === b.body && a.fps === b.fps && a.look === b.look;
+const sameTip = (a: TipData, b: TipData) =>
+	a.title === b.title && a.body === b.body && a.fps === b.fps && a.look === b.look && a.lines?.join("\n") === b.lines?.join("\n");
 
 /** `use:tip={data}` — наведение (с задержкой) или фокус с клавиатуры показывает подсказку. */
 export function tip(node: HTMLElement, initial: TipData | undefined) {

@@ -1,10 +1,10 @@
 use crate::model::*;
 use crate::state::AppState;
-use crate::{agent, engine_flags, gpu, locale, probe, profile, store, telemetry, windows};
+use crate::{agent, cache, engine_flags, gpu, locale, probe, profile, store, telemetry, windows};
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, State, Webview};
+use tauri::{AppHandle, Manager, State, Webview};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LaunchMode {
@@ -256,4 +256,36 @@ mod tests {
         assert_eq!(a(&["--open", "vtt.x", "--baseline"]), Some(("vtt.x".to_string(), LaunchMode::Baseline)));
         assert_eq!(a(&[]), None);
     }
+}
+
+/// F11 в игре: полный экран без рамки для того окна, где нажали.
+#[tauri::command]
+pub fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<(), String> {
+    if !windows::is_game(window.label()) {
+        return Err("not a game window".into());
+    }
+    let on = window.is_fullscreen().map_err(|e| e.to_string())?;
+    window.set_fullscreen(!on).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cache_size() -> u64 {
+    tauri::async_runtime::spawn_blocking(|| cache::size(&store::engine_dir())).await.unwrap_or(0)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearedDto {
+    freed: u64,
+    pending: bool,
+}
+
+#[tauri::command]
+pub async fn clear_cache(app: AppHandle) -> Result<ClearedDto, String> {
+    // Во время игры WebView2 держит эти файлы и пишет в них
+    if app.webview_windows().keys().any(|l| windows::is_game(l)) {
+        return Err("cache.err.gameOpen".into());
+    }
+    let r = tauri::async_runtime::spawn_blocking(|| cache::clear(&store::engine_dir())).await.map_err(|_| "cache.err.failed".to_string())?;
+    Ok(ClearedDto { freed: r.freed, pending: r.pending })
 }

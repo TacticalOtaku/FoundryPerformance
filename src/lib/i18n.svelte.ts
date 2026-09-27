@@ -9,6 +9,10 @@ export function setLocale(l: "ru" | "en"): void {
 	document.documentElement.lang = l;
 }
 
+export function locale(): "ru" | "en" {
+	return current;
+}
+
 export function t(key: string, vars?: Record<string, string | number>): string {
 	const s = dicts[current][key] ?? dicts.ru[key] ?? key;
 	return vars ? s.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? "")) : s;

@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod cache;
 pub mod commands;
 pub mod engine_flags;
 pub mod gpu;
@@ -11,6 +12,7 @@ pub mod state;
 pub mod store;
 pub mod telemetry;
 pub mod tray;
+pub mod window_state;
 pub mod windows;
 
 use installer::mode::Mode;
@@ -32,6 +34,8 @@ pub fn run() {
         if let Some(e) = &exe {
             installer::selfreplace::cleanup(e);
         }
+        // Кэш, который в прошлый раз был занят WebView2: окна игры ещё нет — файлы свободны
+        cache::finish_pending(&store::engine_dir());
         // Первый запуск после автообновления: версия в install.json и «Приложениях Windows»
         let version = installer::version::current().to_string();
         if installer::layout::bump_manifest(&exe_dir, &version).unwrap_or(false) {
@@ -44,6 +48,7 @@ pub fn run() {
         .setup(move |app| {
             app.manage(installer::commands::ModeState { mode });
             app.manage(installer::commands::UpdateState::default());
+            app.manage(windows::WindowMemory::new(store::Store::default_dir()));
             let store = store::Store::new(store::Store::default_dir());
             let gpu = gpu::detect();
             let (settings, n1) = store.load_settings(gpu::recommend(gpu.as_ref()));
@@ -75,10 +80,26 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| match (window.label(), event) {
+            (_, WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
+                if let Some(m) = window.try_state::<windows::WindowMemory>() {
+                    m.track(window);
+                }
+            }
             // Пользователь закрыл лаунчер крестиком — выходим. Программный destroy()
             // при запуске игры CloseRequested не порождает.
-            (windows::LAUNCHER, WindowEvent::CloseRequested { .. }) => window.app_handle().exit(0),
-            (label, WindowEvent::Destroyed) if windows::is_game(label) => {
+            (windows::LAUNCHER, WindowEvent::CloseRequested { .. }) => {
+                if let Some(m) = window.try_state::<windows::WindowMemory>() {
+                    m.persist();
+                }
+                window.app_handle().exit(0)
+            }
+            (label, WindowEvent::Destroyed) if windows::is_game(label) || label == windows::LAUNCHER => {
+                if let Some(m) = window.try_state::<windows::WindowMemory>() {
+                    m.persist();
+                }
+                if label == windows::LAUNCHER {
+                    return;
+                }
                 let app = window.app_handle();
                 let open = app.webview_windows();
                 // Sqyre и поп-ауты держат несколько окон игры — ждём закрытия последнего
@@ -101,6 +122,9 @@ pub fn run() {
             commands::launch,
             commands::clear_notice,
             commands::report_telemetry,
+            commands::toggle_fullscreen,
+            commands::cache_size,
+            commands::clear_cache,
             installer::commands::get_mode,
             installer::commands::pick_install_dir,
             installer::commands::check_install_dir,

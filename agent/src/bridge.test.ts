@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { send } from "./bridge";
+import { send, toggleFullscreen } from "./bridge";
 
 const g = globalThis as Record<string, unknown>;
 
@@ -19,5 +19,14 @@ describe("send", () => {
 		expect(() => send({ kind: "webglLost", early: true })).not.toThrow();
 		g.__TAURI_INTERNALS__ = { invoke: vi.fn().mockRejectedValue(new Error("denied")) };
 		expect(() => send({ kind: "webglLost", early: true })).not.toThrow();
+	});
+});
+
+describe("toggleFullscreen", () => {
+	it("asks the host to toggle this window", () => {
+		const invoke = vi.fn().mockResolvedValue(null);
+		g.__TAURI_INTERNALS__ = { invoke };
+		toggleFullscreen();
+		expect(invoke).toHaveBeenCalledWith("toggle_fullscreen", {});
 	});
 });

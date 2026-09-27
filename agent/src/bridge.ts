@@ -8,14 +8,23 @@ export type Report =
 	| { kind: "foundryUrl"; url: string };
 
 /** Единственный канал наружу. Если Tauri не выдал IPC этому origin — тихо ничего не делаем. */
-export function send(report: Report): void {
+function invoke(cmd: string, args: unknown = {}): void {
 	const internals = (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ as
 		| { invoke?: (cmd: string, args: unknown) => Promise<unknown> }
 		| undefined;
 	if (typeof internals?.invoke !== "function") return;
 	try {
-		internals.invoke("report_telemetry", { report }).catch(() => {});
+		internals.invoke(cmd, args).catch(() => {});
 	} catch {
 		/* IPC недоступен для этого origin */
 	}
+}
+
+export function send(report: Report): void {
+	invoke("report_telemetry", { report });
+}
+
+/** F11: окно, в котором нажали, уходит в полный экран без рамки и обратно. */
+export function toggleFullscreen(): void {
+	invoke("toggle_fullscreen");
 }

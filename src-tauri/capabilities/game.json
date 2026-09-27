@@ -1,9 +1,18 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "game-telemetry",
-  "windows": ["game", "game-*"],
+  "windows": [
+    "game",
+    "game-*"
+  ],
   "remote": {
-    "urls": ["https://*:*/*", "http://*:*/*"]
+    "urls": [
+      "https://*:*/*",
+      "http://*:*/*"
+    ]
   },
-  "permissions": ["allow-report-telemetry"]
+  "permissions": [
+    "allow-report-telemetry",
+    "allow-toggle-fullscreen"
+  ]
 }

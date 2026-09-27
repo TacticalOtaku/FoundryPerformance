@@ -1,6 +1,6 @@
 import { configFor, initAdaptive, refreshFromDeltas, resetTimers, stepAdaptive } from "./adaptive";
 import { runBench } from "./bench";
-import { send } from "./bridge";
+import { send, toggleFullscreen } from "./bridge";
 import { coreValues, defaultValues, reconcile, writePreboot } from "./client-settings";
 import { AGENT_VERSION, collectDiag, downloadDiag } from "./diag";
 import { g } from "./foundry";
@@ -96,6 +96,7 @@ function start(boot: Boot): void {
 			if (e.key === "F9" && e.shiftKey) ensureHud().toggleMenu();
 			else if (e.key === "F9") ensureHud().toggle();
 			else if (e.key === "F10") void diag();
+			else if (e.key === "F11") toggleFullscreen();
 			else return;
 			e.preventDefault();
 			e.stopPropagation();

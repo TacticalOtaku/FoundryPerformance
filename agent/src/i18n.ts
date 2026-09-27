@@ -11,7 +11,7 @@ const ru = {
 	benchNoScene: "НЕТ АКТИВНОЙ СЦЕНЫ",
 	missing: "ПРОПУЩЕНО НАСТРОЕК: {n}",
 	diagSaved: "ДИАГНОСТИКА СОХРАНЕНА В ЗАГРУЗКИ",
-	hint: "F9 HUD · SHIFT+F9 МЕНЮ · F10 ДИАГН."
+	hint: "F9 HUD · SHIFT+F9 МЕНЮ · F10 ДИАГН. · F11 ЭКРАН"
 };
 
 export type Strings = typeof ru;
@@ -27,7 +27,7 @@ const en: Strings = {
 	benchNoScene: "NO ACTIVE SCENE",
 	missing: "SETTINGS SKIPPED: {n}",
 	diagSaved: "DIAGNOSTICS SAVED TO DOWNLOADS",
-	hint: "F9 HUD · SHIFT+F9 MENU · F10 DIAG"
+	hint: "F9 HUD · SHIFT+F9 MENU · F10 DIAG · F11 SCREEN"
 };
 
 export function strings(locale: "ru" | "en"): Strings {

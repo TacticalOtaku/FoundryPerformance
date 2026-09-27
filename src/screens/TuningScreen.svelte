@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Fader from "../components/Fader.svelte";
+	import CacheControl from "../components/CacheControl.svelte";
 	import Segmented from "../components/Segmented.svelte";
 	import Toggle from "../components/Toggle.svelte";
 	import { t } from "../lib/i18n.svelte";
@@ -152,6 +153,7 @@
 					value={dto.settings.engine.diskCacheMb}
 					onchange={(v) => app.saveSettings({ engine: { ...dto.settings.engine, diskCacheMb: v } })}
 				/>
+				<CacheControl />
 				<label class="extra" use:tip={tipFor("extraArgs", t("tuning.extraArgs"))}>
 					<span class="silk">{t("tuning.extraArgs")}</span>
 					<input

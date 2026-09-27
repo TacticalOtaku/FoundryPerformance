@@ -19,7 +19,9 @@ export const api = {
 	saveSettings: (settings: Settings) => call<Settings>("save_settings", { settings }),
 	probe: (url: string) => call<ProbeResult>("probe_server", { url }),
 	launch: (serverId: string, safeMode: boolean) => call<void>("launch", { serverId, safeMode }),
-	clearNotice: () => call<void>("clear_notice")
+	clearNotice: () => call<void>("clear_notice"),
+	cacheSize: () => call<number>("cache_size"),
+	clearCache: () => call<{ freed: number; pending: boolean }>("clear_cache")
 };
 
 export const setupApi = {

@@ -1,6 +1,7 @@
 import type { InstallProgress, InstallStep, Levers, ModeDto, ProfileId, Server, Settings, StateDto } from "./types";
 
 const progressListeners = new Set<(p: InstallProgress) => void>();
+let mockCache = 91_000_000;
 const updateListeners = new Set<(pct: number) => void>();
 
 export function mockOnUpdateProgress(cb: (pct: number) => void): () => void {
@@ -137,6 +138,14 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 		}
 		case "open_installed":
 			return null;
+		case "cache_size":
+			return mockCache;
+		case "clear_cache": {
+			await delay(500);
+			const freed = mockCache;
+			mockCache = 0;
+			return { freed, pending: false };
+		}
 		case "check_update":
 			// превью: ?update=1 — есть обновление, ?update=fail — нет связи
 			switch (new URLSearchParams(location.search).get("update")) {

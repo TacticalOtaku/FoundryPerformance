@@ -24,6 +24,8 @@
     "allow-open-installed",
     "allow-uninstall",
     "allow-check-update",
-    "allow-apply-update"
+    "allow-apply-update",
+    "allow-cache-size",
+    "allow-clear-cache"
   ]
 }

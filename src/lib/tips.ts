@@ -20,6 +20,7 @@ export const TIP_IMPACT = {
 	prime: { fps: 3, look: 1 },
 	angle: {},
 	cache: {},
+	cacheClear: {},
 	extraArgs: {},
 	scope: {},
 	profile: {},

@@ -3,6 +3,7 @@
 	import LaunchButton from "../components/LaunchButton.svelte";
 	import Lcd from "../components/Lcd.svelte";
 	import Slot from "../components/Slot.svelte";
+	import { noteLines } from "../lib/changelog";
 	import { t } from "../lib/i18n.svelte";
 	import { knobPosition } from "../lib/levers";
 	import { app } from "../lib/store.svelte";
@@ -62,7 +63,11 @@
 		{#if app.update && app.updating === null}
 			<button
 				class="update"
-				use:tip={{ title: t("update.notesTitle", { version: app.update.version }), body: app.update.notes || t("update.noNotes") }}
+				use:tip={{
+					title: t("update.notesTitle", { version: app.update.version }),
+					body: t("update.noNotes"),
+					lines: noteLines(app.update.notes)
+				}}
 				onclick={() => app.applyUpdate()}
 			>
 				<span class="mono">{t("update.available", { version: app.update.version })}</span><span class="lamp" aria-hidden="true"></span>

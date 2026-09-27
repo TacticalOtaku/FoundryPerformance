@@ -89,7 +89,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 				recommended: "balance",
 				notice: null,
 				locale: "ru",
-				version: "0.1.0-preview"
+				version: "0.2.2"
 			} satisfies StateDto;
 		case "save_server": {
 			const s = args.server as Server;
@@ -138,10 +138,15 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 		case "open_installed":
 			return null;
 		case "check_update":
-			// превью кнопки обновления: ?update=1
-			return new URLSearchParams(location.search).has("update")
-				? { version: "0.2.0", notes: "Статус сервера в кружке слота. Автообновление через GitHub." }
-				: null;
+			// превью: ?update=1 — есть обновление, ?update=fail — нет связи
+			switch (new URLSearchParams(location.search).get("update")) {
+				case "1":
+					return { version: "0.2.3", notes: "- Статус сервера в кружке слота\n- Автообновление через GitHub" };
+				case "fail":
+					throw "update.err.check";
+				default:
+					return null;
+			}
 		case "apply_update":
 			for (let p = 0; p <= 100; p += 10) {
 				updateListeners.forEach((cb) => cb(p));

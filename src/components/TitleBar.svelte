@@ -1,14 +1,16 @@
 <script lang="ts">
+	import type { Snippet } from "svelte";
 	import { windowControls } from "../lib/api";
 	import { t } from "../lib/i18n.svelte";
 
-	let { channel }: { channel: string } = $props();
+	/** `children` — свой блок справа вместо текстовой таблички (версия в лаунчере). */
+	let { channel, children }: { channel: string; children?: Snippet } = $props();
 </script>
 
 <header class="bar plate" data-tauri-drag-region>
 	<span class="power" aria-hidden="true"></span>
 	<b class="brand" data-tauri-drag-region>FOUNDRY/PERFORMANCE</b>
-	{#if channel}<span class="tag mono" data-tauri-drag-region>{channel}</span>{/if}
+	{#if children}{@render children()}{:else if channel}<span class="tag mono" data-tauri-drag-region>{channel}</span>{/if}
 	<div class="ctl">
 		<button aria-label={t("window.minimize")} onclick={() => windowControls.minimize()}><span class="glyph min"></span></button>
 		<button class="close" aria-label={t("window.close")} onclick={() => windowControls.close()}><span class="glyph x"></span></button>

@@ -39,6 +39,8 @@ export type TipKey = keyof typeof TIP_IMPACT;
 export interface TipData {
 	title: string;
 	body: string;
+	/** Пункты списка под текстом — например, изменения версии. */
+	lines?: string[];
 	fps?: number;
 	look?: number;
 }

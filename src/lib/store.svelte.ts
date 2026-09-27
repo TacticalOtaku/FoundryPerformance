@@ -28,6 +28,10 @@ function takeSavedOverrides(id: string): Overrides | null {
 }
 const systemLocale = (): "ru" | "en" => (navigator.language.toLowerCase().startsWith("ru") ? "ru" : "en");
 
+export type UpdateCheck = "idle" | "checking" | "current" | "available" | "failed";
+const UPDATE_EVERY_MS = 30 * 60_000;
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 class AppStore {
 	dto = $state<StateDto | null>(null);
 	selectedId = $state<string | null>(null);
@@ -41,6 +45,9 @@ class AppStore {
 	update = $state<UpdateInfo | null>(null);
 	/** Проценты загрузки обновления; null — не качаем. */
 	updating = $state<number | null>(null);
+	/** Итог ручной проверки обновлений; через несколько секунд снова idle. */
+	updateCheck = $state<UpdateCheck>("idle");
+	#checkReset: ReturnType<typeof setTimeout> | undefined;
 
 	get selected(): Server | null {
 		return this.dto?.servers.find((s) => s.id === this.selectedId) ?? null;
@@ -58,7 +65,8 @@ class AppStore {
 		this.applyLocale();
 		this.selectedId = dto.servers[0]?.id ?? null;
 		for (const s of dto.servers) void this.probe(s);
-		void updateApi.check().then((u) => (this.update = u)).catch(() => {});
+		void this.checkUpdate();
+		setInterval(() => void this.checkUpdate(), UPDATE_EVERY_MS);
 		// Пока лаунчер открыт, кружки сами обновляются — видно, когда ГМ запустил сервер
 		setInterval(() => {
 			for (const s of this.dto?.servers ?? []) void this.probe(s, true);
@@ -198,6 +206,28 @@ class AppStore {
 
 	async resetOverrides(): Promise<void> {
 		await this.saveOverrides({});
+	}
+
+	/** `manual` — нажатие кнопки: показываем ход и итог проверки. Фоновая — молча. */
+	async checkUpdate(manual = false): Promise<void> {
+		if (this.updateCheck === "checking" || this.updating !== null) return;
+		if (manual) {
+			clearTimeout(this.#checkReset);
+			this.updateCheck = "checking";
+		}
+		let result: UpdateCheck;
+		try {
+			// короткий ответ из кэша иначе мелькнул бы незаметно
+			const [u] = await Promise.all([updateApi.check(), manual ? delay(600) : null]);
+			this.update = u;
+			result = u ? "available" : "current";
+		} catch {
+			// без сети прежнее найденное обновление остаётся на экране
+			result = "failed";
+		}
+		if (!manual) return;
+		this.updateCheck = result;
+		this.#checkReset = setTimeout(() => (this.updateCheck = "idle"), 5000);
 	}
 
 	async applyUpdate(): Promise<void> {

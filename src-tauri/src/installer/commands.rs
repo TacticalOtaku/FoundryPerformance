@@ -141,7 +141,8 @@ pub async fn check_update(state: State<'_, UpdateState>) -> Result<Option<Update
     if cfg!(debug_assertions) {
         return Ok(None);
     }
-    let Some(m) = super::update::fetch_manifest().await else { return Ok(None) };
+    // Ошибку отдаём наверх: ручная проверка должна отличать «нет связи» от «обновлений нет»
+    let m = super::update::fetch_manifest().await?;
     if !super::update::is_newer(version::current(), &m) {
         return Ok(None);
     }

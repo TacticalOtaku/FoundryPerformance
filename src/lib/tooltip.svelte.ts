@@ -1,4 +1,5 @@
 import { untrack } from "svelte";
+import type { Attachment } from "svelte/attachments";
 import { t } from "./i18n.svelte";
 import { TIP_IMPACT, type TipData, type TipKey } from "./tips";
 
@@ -32,62 +33,64 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 const sameTip = (a: TipData, b: TipData) =>
 	a.title === b.title && a.body === b.body && a.fps === b.fps && a.look === b.look && a.lines?.join("\n") === b.lines?.join("\n");
 
-/** `use:tip={data}` — наведение (с задержкой) или фокус с клавиатуры показывает подсказку. */
-export function tip(node: HTMLElement, initial: TipData | undefined) {
-	let data = initial;
+/**
+ * `{@attach tip(() => data)}` — наведение (с задержкой) или фокус с клавиатуры показывает подсказку.
+ * Данные берутся через функцию: сама привязка не пересоздаётся, когда они меняются,
+ * а уже открытая подсказка обновляет текст на месте.
+ */
+export function tip(get: () => TipData | undefined): Attachment<HTMLElement> {
+	return (node) => {
+		const show = (delay: number) => {
+			clearTimeout(timer);
+			timer = setTimeout(() => {
+				const data = get();
+				if (!data) return;
+				tipState.hide();
+				tipState.current = { data, rect: node.getBoundingClientRect(), owner: node };
+				node.setAttribute("aria-describedby", TIP_ID);
+			}, delay);
+		};
+		const hide = () => {
+			clearTimeout(timer);
+			// Если элемент удаляют из DOM, focusout приходит прямо во время разборки,
+			// а менять $state в этот момент Svelte запрещает — прячем на следующем тике.
+			if (tipState.current?.owner === node) {
+				queueMicrotask(() => {
+					if (tipState.current?.owner === node) tipState.hide();
+				});
+			}
+		};
+		const onEnter = () => show(DELAY_MS);
+		const onFocus = (e: FocusEvent) => {
+			if ((e.target as HTMLElement).matches(":focus-visible")) show(0);
+		};
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") hide();
+		};
 
-	const show = (delay: number) => {
-		clearTimeout(timer);
-		if (!data) return;
-		timer = setTimeout(() => {
-			if (!data) return;
-			tipState.hide();
-			tipState.current = { data, rect: node.getBoundingClientRect(), owner: node };
-			node.setAttribute("aria-describedby", TIP_ID);
-		}, delay);
-	};
-	const hide = () => {
-		clearTimeout(timer);
-		// Если элемент удаляют из DOM, focusout приходит прямо во время разборки,
-		// а менять $state в этот момент Svelte запрещает — прячем на следующем тике.
-		if (tipState.current?.owner === node) {
-			queueMicrotask(() => {
-				if (tipState.current?.owner === node) tipState.hide();
-			});
-		}
-	};
-	const onEnter = () => show(DELAY_MS);
-	const onFocus = (e: FocusEvent) => {
-		if ((e.target as HTMLElement).matches(":focus-visible")) show(0);
-	};
-	const onKey = (e: KeyboardEvent) => {
-		if (e.key === "Escape") hide();
-	};
-
-	node.addEventListener("pointerenter", onEnter);
-	node.addEventListener("pointerleave", hide);
-	node.addEventListener("focusin", onFocus);
-	node.addEventListener("focusout", hide);
-	node.addEventListener("keydown", onKey);
-
-	return {
-		update(next: TipData | undefined) {
-			data = next;
-			// untrack: update вызывается внутри эффекта; чтение и запись tipState.current в нём
-			// подписали бы эффект на самого себя (бесконечный цикл, если объект подсказки
-			// создаётся заново при каждой перерисовке).
+		// Эффект следит только за данными подсказки; открыта ли она сейчас — читаем без подписки,
+		// иначе запись tipState.current перезапускала бы этот же эффект.
+		$effect(() => {
+			const next = get();
 			untrack(() => {
 				const cur = tipState.current;
 				if (next && cur?.owner === node && !sameTip(cur.data, next)) tipState.current = { ...cur, data: next };
 			});
-		},
-		destroy() {
+		});
+
+		node.addEventListener("pointerenter", onEnter);
+		node.addEventListener("pointerleave", hide);
+		node.addEventListener("focusin", onFocus);
+		node.addEventListener("focusout", hide);
+		node.addEventListener("keydown", onKey);
+
+		return () => {
 			hide();
 			node.removeEventListener("pointerenter", onEnter);
 			node.removeEventListener("pointerleave", hide);
 			node.removeEventListener("focusin", onFocus);
 			node.removeEventListener("focusout", hide);
 			node.removeEventListener("keydown", onKey);
-		}
+		};
 	};
 }

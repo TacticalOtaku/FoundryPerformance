@@ -13,6 +13,9 @@ pub struct Data {
     pub current_server: Option<String>,
     /// Откат ANGLE выполняется не больше одного раза за сессию.
     pub session_fallback_done: bool,
+    /// Источники страниц, от которых в этой сессии принимаются отчёты агента:
+    /// адрес входа, известный адрес игры и адрес, подтверждённый проверкой Foundry.
+    pub session_origins: Vec<url::Origin>,
 }
 
 pub struct AppState {

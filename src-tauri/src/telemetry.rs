@@ -36,6 +36,28 @@ pub fn validate(r: &Report) -> bool {
     }
 }
 
+/// Откуда в этой сессии ждём отчёты: адрес входа и уже известный адрес игры.
+pub fn session_origins(server: &Server) -> Vec<url::Origin> {
+    let mut out: Vec<url::Origin> = Vec::new();
+    for u in [Some(server.url.as_str()), server.game_url.as_deref()].into_iter().flatten() {
+        if let Ok(u) = crate::probe::normalize_url(u) {
+            if !out.contains(&u.origin()) {
+                out.push(u.origin());
+            }
+        }
+    }
+    out
+}
+
+pub fn page_trusted(page: &url::Url, origins: &[url::Origin]) -> bool {
+    origins.contains(&page.origin())
+}
+
+/// Страница может сообщить только свой собственный адрес.
+pub fn describes_page(reported: &str, page: &url::Url) -> bool {
+    crate::probe::normalize_url(reported).is_ok_and(|u| u.origin() == page.origin())
+}
+
 pub fn apply(
     report: &Report,
     server_id: &str,
@@ -176,5 +198,26 @@ mod tests {
         assert_eq!((n.key.as_str(), n.params["to"].as_str()), ("notice.engineFallback", "d3d11on12"));
         let fx = apply(&Report::WebglLost { early: false }, "a", 0, &mut stats, &mut servers, &mut settings);
         assert_eq!(fx, Effects::default());
+    }
+
+    #[test]
+    fn reports_are_trusted_only_from_session_pages() {
+        let mut s = srv("a");
+        s.url = "https://www.sqyre.app/games/x/".into();
+        s.game_url = Some("https://x.sqyre.app/".into());
+        let origins = session_origins(&s);
+        assert_eq!(origins.len(), 2);
+        assert!(page_trusted(&"https://x.sqyre.app/game".parse().unwrap(), &origins));
+        assert!(page_trusted(&"https://www.sqyre.app/games/x/".parse().unwrap(), &origins));
+        assert!(!page_trusted(&"https://evil.example/x".parse().unwrap(), &origins));
+        assert!(!page_trusted(&"http://x.sqyre.app/game".parse().unwrap(), &origins));
+    }
+
+    #[test]
+    fn a_page_can_only_report_its_own_address() {
+        let page: url::Url = "https://x.sqyre.app/game?session=1".parse().unwrap();
+        assert!(describes_page("https://x.sqyre.app/game", &page));
+        assert!(!describes_page("https://evil.example/", &page));
+        assert!(!describes_page("not a url", &page));
     }
 }

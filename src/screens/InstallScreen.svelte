@@ -9,7 +9,8 @@
 
 	const STEPS: Exclude<InstallStep, "done">[] = ["check", "copy", "shortcuts", "register"];
 
-	let dir = $state("");
+	// Папка по умолчанию, пока пользователь не выбрал свою
+	let dir = $derived(info.defaultDir);
 	let desktop = $state(true);
 	let launch = $state(true);
 	let dirError = $state<string | null>(null);
@@ -18,9 +19,6 @@
 	let pct = $state(0);
 	let error = $state<string | null>(null);
 
-	$effect.pre(() => {
-		dir = info.defaultDir;
-	});
 
 	// Ручка «доворачивается» по мере установки: от КАЧ (−60°) до КРТ (+60°)
 	const angle = $derived(-60 + (120 * pct) / 100);

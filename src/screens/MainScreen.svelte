@@ -63,11 +63,9 @@
 		{#if app.update && app.updating === null}
 			<button
 				class="update"
-				use:tip={{
-					title: t("update.notesTitle", { version: app.update.version }),
-					body: t("update.noNotes"),
-					lines: noteLines(app.update.notes)
-				}}
+				{@attach tip(() =>
+					app.update ? { title: t("update.notesTitle", { version: app.update.version }), body: t("update.noNotes"), lines: noteLines(app.update.notes) } : undefined
+				)}
 				onclick={() => app.applyUpdate()}
 			>
 				<span class="mono">{t("update.available", { version: app.update.version })}</span><span class="lamp" aria-hidden="true"></span>

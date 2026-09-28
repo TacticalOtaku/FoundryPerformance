@@ -81,6 +81,7 @@ fn start_game(app: &AppHandle, state: &AppState, server: &Server, mode: LaunchMo
         let mut d = state.data.lock().expect("state poisoned");
         d.current_server = Some(server.id.clone());
         d.session_fallback_done = false;
+        d.session_origins = telemetry::session_origins(server);
         build_launch(&d.settings, server, mode)?
     };
     windows::open_game(app, launch).map_err(|e| {
@@ -167,9 +168,24 @@ pub fn clear_notice(state: State<'_, AppState>) {
     state.data.lock().expect("state poisoned").notice = None;
 }
 
+/// Окна игры открывают и чужие страницы (ссылки из чата), а IPC им доступен.
+/// Поэтому отчёт принимается только со страниц этой сессии, а новый адрес игры —
+/// только о самой странице и только если по нему действительно отвечает Foundry.
 #[tauri::command]
-pub fn report_telemetry(webview: Webview, state: State<'_, AppState>, report: telemetry::Report) -> Result<(), String> {
+pub async fn report_telemetry(webview: Webview, state: State<'_, AppState>, report: telemetry::Report) -> Result<(), String> {
     if !windows::is_game(webview.label()) || !telemetry::validate(&report) {
+        return Err("rejected".into());
+    }
+    let page = webview.url().map_err(|_| "rejected".to_string())?;
+    if let telemetry::Report::FoundryUrl { url } = &report {
+        if !telemetry::describes_page(url, &page) || !probe::probe(url).await.foundry {
+            return Err("rejected".into());
+        }
+        let mut d = state.data.lock().expect("state poisoned");
+        if !d.session_origins.contains(&page.origin()) {
+            d.session_origins.push(page.origin());
+        }
+    } else if !telemetry::page_trusted(&page, &state.data.lock().expect("state poisoned").session_origins) {
         return Err("rejected".into());
     }
     let mut guard = state.data.lock().expect("state poisoned");

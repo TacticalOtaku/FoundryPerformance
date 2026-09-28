@@ -27,14 +27,14 @@
 	<span class="status mono {check}" role="status">{status}</span>
 	<!-- tabindex: список изменений доступен и с клавиатуры -->
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-	<span class="tag mono" tabindex="0" use:tip={notesTip}>v{version}</span>
+	<span class="tag mono" tabindex="0" {@attach tip(() => notesTip)}>v{version}</span>
 	<button
 		class="check"
 		class:busy={check === "checking"}
 		class:ready={app.update !== null}
 		aria-label={t("update.check")}
 		aria-busy={check === "checking"}
-		use:tip={{ title: t("update.check"), body: t("update.checkBody") }}
+		{@attach tip(() => ({ title: t("update.check"), body: t("update.checkBody") }))}
 		onclick={() => app.checkUpdate(true)}
 	>
 		<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">

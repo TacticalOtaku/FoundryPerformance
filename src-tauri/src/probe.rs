@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 use std::time::Duration;
 use url::Url;
 
@@ -63,12 +64,17 @@ pub fn parse_status(body: &str) -> Option<ProbeResult> {
     Some(ProbeResult { reachable: true, foundry: true, active, version: raw.version, world: raw.world, system: raw.system, users: raw.users })
 }
 
+/// Один клиент на всё приложение: он держит пул соединений, а лаунчер
+/// перепроверяет серверы раз в минуту.
+fn client() -> Option<&'static reqwest::Client> {
+    static CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+    CLIENT.get_or_init(|| reqwest::Client::builder().timeout(Duration::from_secs(3)).build().ok()).as_ref()
+}
+
 pub async fn probe(input: &str) -> ProbeResult {
     let Ok(base) = normalize_url(input) else { return ProbeResult::default() };
     let Ok(status_url) = base.join("api/status") else { return ProbeResult::default() };
-    let Ok(client) = reqwest::Client::builder().timeout(Duration::from_secs(3)).build() else {
-        return ProbeResult::default();
-    };
+    let Some(client) = client() else { return ProbeResult::default() };
     match client.get(status_url).send().await {
         Err(_) => ProbeResult::default(),
         Ok(resp) => {

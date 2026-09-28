@@ -38,11 +38,9 @@
 	const TRACK = 108;
 	const THUMB = 14;
 
-	// Пока бегунок тянут, значение только показывается; сохраняется на `change`
-	let live = $state(0);
-	$effect(() => {
-		live = value;
-	});
+	// Пока бегунок тянут, значение только показывается; сохраняется на `change`.
+	// Своё значение живёт, пока не придёт новое `value` (перезаписываемый $derived).
+	let live = $derived(value);
 
 	const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v / step) * step));
 	const markY = (m: number) => (TRACK - THUMB) * (1 - (m - min) / (max - min)) + THUMB / 2;
@@ -60,7 +58,7 @@
 	}
 </script>
 
-<div class="fader" use:tooltip={tip}>
+<div class="fader" {@attach tooltip(() => tip)}>
 	<span class="lbl silk">{label}{#if modified}<i class="dot" aria-hidden="true"></i>{/if}</span>
 	<div class="row" style:height={`${TRACK}px`}>
 		{#if marks.length}

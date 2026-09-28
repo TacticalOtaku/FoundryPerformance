@@ -7,16 +7,38 @@ export type Report =
 	| { kind: "webglLost"; early: boolean }
 	| { kind: "foundryUrl"; url: string };
 
-/** Единственный канал наружу. Если Tauri не выдал IPC этому origin — тихо ничего не делаем. */
+/**
+ * Состояние канала к лаунчеру — для диагностики (F10).
+ * `missing` на странице самого мира значит, что обновление Tauri сменило внутренний IPC:
+ * `__TAURI_INTERNALS__` не публичный API, при обновлении Tauri его надо перепроверять.
+ */
+export type IpcStatus = { state: "unknown" | "ok" | "missing" | "rejected"; error?: string };
+
+let status: IpcStatus = { state: "unknown" };
+let warned = false;
+
+export function ipcStatus(): IpcStatus {
+	return status;
+}
+
+/** Единственный канал наружу. Если Tauri не выдал IPC этому origin — ничего не ломаем, только запоминаем. */
 function invoke(cmd: string, args: unknown = {}): void {
 	const internals = (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ as
 		| { invoke?: (cmd: string, args: unknown) => Promise<unknown> }
 		| undefined;
-	if (typeof internals?.invoke !== "function") return;
+	if (typeof internals?.invoke !== "function") {
+		status = { state: "missing" };
+		if (!warned) {
+			warned = true;
+			console.warn("[foundry-performance] IPC недоступен: отчёты агента не доходят до лаунчера");
+		}
+		return;
+	}
+	const fail = (e: unknown) => (status = { state: "rejected", error: String(e) });
 	try {
-		internals.invoke(cmd, args).catch(() => {});
-	} catch {
-		/* IPC недоступен для этого origin */
+		internals.invoke(cmd, args).then(() => (status = { state: "ok" }), fail);
+	} catch (e) {
+		fail(e);
 	}
 }
 

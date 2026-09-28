@@ -65,6 +65,7 @@ pub fn run() {
                     notice: n1.or(n2).or(n3),
                     current_server: None,
                     session_fallback_done: false,
+                    session_origins: Vec::new(),
                 }),
             });
             // Установщик и удаление — только окно, без трея и игры

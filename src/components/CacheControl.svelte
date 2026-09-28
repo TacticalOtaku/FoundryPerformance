@@ -53,7 +53,7 @@
 	);
 </script>
 
-<div class="cache" use:tip={tipFor("cacheClear", t("cache.title"))}>
+<div class="cache" {@attach tip(() => tipFor("cacheClear", t("cache.title")))}>
 	<span class="lbl silk">{t("cache.title")}</span>
 	<div class="row">
 		<span class="used mono">{bytes === null ? "…" : fmt(bytes)}</span>

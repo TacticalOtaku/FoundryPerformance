@@ -21,7 +21,7 @@
 	} = $props();
 </script>
 
-<div class="seg" class:vertical role="radiogroup" aria-label={label} use:tooltip={tip}>
+<div class="seg" class:vertical role="radiogroup" aria-label={label} {@attach tooltip(() => tip)}>
 	<span class="lbl silk">{label}{#if modified}<i class="dot" aria-hidden="true"></i>{/if}</span>
 	<div class="opts">
 		{#each options as o (o.value)}

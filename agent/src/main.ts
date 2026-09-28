@@ -1,6 +1,6 @@
 import { configFor, initAdaptive, refreshFromDeltas, resetTimers, stepAdaptive } from "./adaptive";
 import { runBench } from "./bench";
-import { send, toggleFullscreen } from "./bridge";
+import { ipcStatus, send, toggleFullscreen } from "./bridge";
 import { coreValues, defaultValues, reconcile, writePreboot } from "./client-settings";
 import { AGENT_VERSION, collectDiag, downloadDiag } from "./diag";
 import { g } from "./foundry";
@@ -226,7 +226,7 @@ function start(boot: Boot): void {
 		}
 		downloadDiag(
 			collectDiag({
-				fp: { profileId, measureOnly, levers, adaptive, skipped, before, resolutionTest, tickerAttached, bootProfiles: Object.keys(boot.presets) }
+				fp: { profileId, measureOnly, levers, adaptive, skipped, before, resolutionTest, tickerAttached, bootProfiles: Object.keys(boot.presets), ipc: ipcStatus() }
 			})
 		);
 		ensureHud().status(t.diagSaved);

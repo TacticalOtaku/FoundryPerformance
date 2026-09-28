@@ -154,7 +154,7 @@
 					onchange={(v) => app.saveSettings({ engine: { ...dto.settings.engine, diskCacheMb: v } })}
 				/>
 				<CacheControl />
-				<label class="extra" use:tip={tipFor("extraArgs", t("tuning.extraArgs"))}>
+				<label class="extra" {@attach tip(() => tipFor("extraArgs", t("tuning.extraArgs")))}>
 					<span class="silk">{t("tuning.extraArgs")}</span>
 					<input
 						class="mono"

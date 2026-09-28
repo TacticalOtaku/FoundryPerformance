@@ -11,7 +11,7 @@
 	}: { label: string; checked: boolean; modified?: boolean; tip?: TipData; onchange: (v: boolean) => void } = $props();
 </script>
 
-<button class="toggle" use:tooltip={tip} role="switch" aria-checked={checked} onclick={() => onchange(!checked)}>
+<button class="toggle" {@attach tooltip(() => tip)} role="switch" aria-checked={checked} onclick={() => onchange(!checked)}>
 	<span>{label}{#if modified}<i class="dot" aria-hidden="true"></i>{/if}</span>
 	<span class="state"><span class="lamp" class:on={checked}></span><span class="sw" class:on={checked}><i></i></span></span>
 </button>

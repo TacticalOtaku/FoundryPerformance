@@ -5,7 +5,7 @@
 	let { state, label }: { state: LedState; label: string } = $props();
 </script>
 
-<span class="hit" use:tip={label ? { title: label, body: "" } : undefined}>
+<span class="hit" {@attach tip(() => label ? { title: label, body: "" } : undefined)}>
 	<span class="led {state}" role="img" aria-label={label}></span>
 </span>
 

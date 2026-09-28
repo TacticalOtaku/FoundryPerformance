@@ -3,20 +3,10 @@
 
 	let { busy, onlaunch }: { busy: boolean; onlaunch: (safe: boolean) => void } = $props();
 	let shift = $state(false);
-
-	$effect(() => {
-		const track = (e: KeyboardEvent) => (shift = e.shiftKey);
-		const reset = () => (shift = false);
-		window.addEventListener("keydown", track);
-		window.addEventListener("keyup", track);
-		window.addEventListener("blur", reset);
-		return () => {
-			window.removeEventListener("keydown", track);
-			window.removeEventListener("keyup", track);
-			window.removeEventListener("blur", reset);
-		};
-	});
+	const track = (e: KeyboardEvent) => (shift = e.shiftKey);
 </script>
+
+<svelte:window onkeydown={track} onkeyup={track} onblur={() => (shift = false)} />
 
 <div class="group">
 	<button class="launch" class:safe={shift} aria-busy={busy} onclick={(e) => onlaunch(e.shiftKey)}>

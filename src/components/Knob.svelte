@@ -49,7 +49,7 @@
 			class:manual={p === "manual"}
 			style:left={`${at.x}px`}
 			style:top={`${at.y}px`}
-			use:tip={tipOf(p)}
+			{@attach tip(() => tipOf(p))}
 			onclick={() => onchange(p)}>{label(p)}</button
 		>
 	{/each}
@@ -66,7 +66,7 @@
 		{onkeydown}
 		onwheel={(e) => step(e.deltaY > 0 ? 1 : -1)}
 		onclick={() => step(value === "potato" || value === "manual" ? -9 : 1)}
-		use:tip={tipFor("profile", t("knob.label"))}
+		{@attach tip(() => tipFor("profile", t("knob.label")))}
 	>
 		<div class="cap" style:rotate={`${ANGLE[value]}deg`}><i></i></div>
 	</div>

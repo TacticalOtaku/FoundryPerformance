@@ -64,12 +64,17 @@ FPS падает в разы, а паспорт по-прежнему показ
   `WEBGL_debug_renderer_info`; переносится из `diag.ts`, F10 использует его же.
 - `bridge.ts`: рядом с `send` появляется `ask<T>(report): Promise<T | null>` — ждёт ответ
   `report_telemetry`, при отказе IPC возвращает `null` и обновляет `ipcStatus` как `send`.
-- `main.ts`: когда канвас готов (там же, где вешается `webglcontextlost`), один раз за загрузку
-  мира: если имя рендерера получено — `ask({kind: "gpu", renderer})`; при ответе
-  `software` или `wrongGpu` — `ui.notifications.warn(текст)`. Работает и в базовом замере.
+- `main.ts`: отчёт `foundryUrl` отправляется через `ask`, и проверка GPU ждёт его ответа —
+  на хостингах страница игры становится доверенной только после этого отчёта. Проверка
+  запускается в `ready` после `attachTicker()` и, если канваса тогда не было, в следующем
+  `canvasReady` (только после `ready`: в Foundry `canvasReady` срабатывает раньше `ready`).
+  Один раз за загрузку мира: если имя рендерера получено — `ask({kind: "gpu", renderer})`;
+  при ответе `software` или `wrongGpu` — `ui.notifications.warn(текст, {permanent: true})`.
+  Работает и в базовом замере.
 - i18n агента: `gpuSoftware` («Игра рисует без видеокарты. Движок уже переключён —
-  перезапусти игру»), `gpuWrong` («Игра рисует на встроенной видеокарте. Включи
-  „Высокую производительность“ для Foundry Performance в настройках графики Windows»), RU и EN.
+  перезапусти игру»), `gpuWrong` («Игра рисует на встроенной видеокарте. Выбери дискретную видеокарту
+  основной в панели NVIDIA или AMD»), RU и EN. Настройка графики Windows для нашего exe не
+  годится: рисует GPU-процесс `msedgewebview2.exe` из папки с номером версии WebView2.
 
 ### Rust (`src-tauri/src`)
 - `gpu.rs`: `detect()` → `detect_all() -> Vec<GpuInfo>` (все аппаратные адаптеры);
@@ -77,11 +82,12 @@ FPS падает в разы, а паспорт по-прежнему показ
   `AppState.adapters: Vec<GpuInfo>`; паспорт и `recommend` берут `best`.
   Плюс `Verdict`, `classify`, разбор строки (раздел 2).
 - `telemetry.rs`: `Report::Gpu { renderer: String }`; `validate` отклоняет `renderer`
-  длиннее 512 символов. `apply` получает `adapters` и `mode`, классифицирует и:
-  - в `LaunchMode::Normal` сохраняет `settings.gpu_check`, при `Software` делает откат ANGLE и
-    уведомление — под тем же флагом `session_fallback_done`, что и ранний `webglLost`;
-  - в `LaunchMode::Baseline` (стоковые флаги) только возвращает вердикт, ничего не сохраняя.
-  - `Effects` получает поле `verdict: Option<Verdict>`.
+  длиннее 512 символов. Общий `apply` его не трогает; отдельная чистая функция
+  `apply_gpu(renderer, adapters, persist, fallback_allowed, settings) -> (Verdict, Effects)`:
+  - `persist` (запуск `LaunchMode::Normal`) — сохраняет `settings.gpu_check`, при `Software` и
+    `fallback_allowed` делает откат ANGLE и уведомление; `Effects.fallback = true`, и команда
+    выставляет тот же флаг `session_fallback_done`, что и ранний `webglLost`;
+  - без `persist` (`LaunchMode::Baseline`, стоковые флаги) только возвращает вердикт.
 - `state.rs`: `Data.current_mode: LaunchMode` — выставляется в `start_game` рядом с
   `current_server`. (`LaunchMode::Safe` агента не имеет и отчётов не шлёт.)
 - `commands.rs`: `report_telemetry` возвращает `Result<Option<Verdict>, String>`; для всех
@@ -103,7 +109,9 @@ pub struct GpuCheck {
 сменили бэкенд (вручную или откатом) или видеокарту. Устаревшая показывается как «не проверено».
 
 ### Лаунчер (временно, до Tactile)
-- `StateDto` получает `gpuCheck: GpuCheck | null` и `gpuCheckCurrent: boolean`.
+- `gpuCheck` приходит в составе `settings`; `StateDto` получает `gpuCheckCurrent: boolean`.
+- `save_settings` сохраняет `gpu_check` с сервера, а не из присланных настроек: копия
+  настроек в интерфейсе может быть старше последней проверки.
 - Паспорт (`MainScreen.svelte`): строка `API` показывает реальный бэкенд из актуальной проверки,
   иначе выбранный в настройках; новая строка «УСКОРЕНИЕ» с лампочкой: «ВКЛ» / «ПРОГРАММНОЕ» /
   «ВСТРОЙКА» / «НЕ ПРОВЕРЕНО» (`Unknown` и устаревшая — «НЕ ПРОВЕРЕНО»). Подсказка через `tip`

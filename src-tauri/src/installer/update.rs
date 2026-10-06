@@ -32,6 +32,11 @@ pub fn is_newer(current: Version, m: &Manifest) -> bool {
     Version::parse(&m.version).is_some_and(|v| v > current)
 }
 
+/// SHA-256 в нижнем hex — в таком виде он лежит в `latest.json`.
+fn sha256_hex(bytes: &[u8]) -> String {
+    Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
+}
+
 fn decode_text(b64: &str) -> Option<String> {
     String::from_utf8(STANDARD.decode(b64.trim()).ok()?).ok()
 }
@@ -41,7 +46,7 @@ pub fn verify(bytes: &[u8], m: &Manifest, public_key_b64: &str) -> Result<(), &'
     if !m.url.starts_with(RELEASES_PREFIX) {
         return Err("update.err.source");
     }
-    if !format!("{:x}", Sha256::digest(bytes)).eq_ignore_ascii_case(m.sha256.trim()) {
+    if !sha256_hex(bytes).eq_ignore_ascii_case(m.sha256.trim()) {
         return Err("update.err.hash");
     }
     let key = decode_text(public_key_b64).and_then(|t| PublicKey::decode(&t).ok()).ok_or("update.err.signature")?;
@@ -138,7 +143,7 @@ mod tests {
     #[test]
     fn matching_hash_but_foreign_file_fails_signature() {
         let tampered = b"hellO";
-        let m = Manifest { sha256: format!("{:x}", Sha256::digest(tampered)), ..manifest() };
+        let m = Manifest { sha256: sha256_hex(tampered), ..manifest() };
         assert_eq!(verify(tampered, &m, PUBLIC_KEY), Err("update.err.signature"));
     }
 
@@ -165,6 +170,16 @@ mod tests {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../dist-release");
         let m: Manifest = serde_json::from_str(&fs::read_to_string(dir.join("latest.json")).unwrap()).unwrap();
         let exe = fs::read(dir.join(format!("FoundryPerformance-{}.exe", m.version))).unwrap();
+        assert_eq!(verify(&exe, &m, PUBLIC_KEY), Ok(()));
+    }
+
+    /// Живая проверка сетевого стека (reqwest, TLS, сертификаты) и опубликованного релиза.
+    /// Нужна после обновления reqwest: `cargo test live_release_verifies -- --ignored`.
+    #[tokio::test]
+    #[ignore]
+    async fn live_release_verifies() {
+        let m = fetch_manifest().await.unwrap();
+        let exe = download(&m.url, |_| {}).await.unwrap();
         assert_eq!(verify(&exe, &m, PUBLIC_KEY), Ok(()));
     }
 

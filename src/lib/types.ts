@@ -7,7 +7,7 @@ export type LocalePref = "auto" | "ru" | "en";
 export type ThemePref = "auto" | "day" | "night";
 export type LedState = "ok" | "warn" | "err" | "off" | "pending";
 
-export interface EngineSettings {
+interface EngineSettings {
 	angle: AngleBackend;
 	diskCacheMb: number;
 	extraArgs: string;
@@ -32,30 +32,30 @@ export interface Server {
 	gameUrl?: string | null;
 }
 
-export interface FpsSummary {
+interface FpsSummary {
 	avg: number;
 	low1: number;
 	profile: ProfileId;
 	at: number;
 }
 
-export interface BenchResult extends FpsSummary {
+interface BenchResult extends FpsSummary {
 	min: number;
 }
 
-export interface ServerStats {
+interface ServerStats {
 	lastSession: FpsSummary | null;
 	lastBench: BenchResult | null;
 	/** Средний FPS последних отчётов сеанса — мини-график на ЖК. */
 	history?: number[];
 }
 
-export interface Notice {
+interface Notice {
 	key: string;
 	params: Record<string, string>;
 }
 
-export interface GpuInfo {
+interface GpuInfo {
 	name: string;
 	vramMb: number;
 	vendorId: number;
@@ -83,8 +83,8 @@ export interface ProbeResult {
 	users: number | null;
 }
 
-export type Mode = "launcher" | "install" | "uninstall";
-export type InstallState = "fresh" | "upgrade" | "current";
+type Mode = "launcher" | "install" | "uninstall";
+type InstallState = "fresh" | "upgrade" | "current";
 export type InstallStep = "check" | "copy" | "shortcuts" | "register" | "done";
 
 export interface InstallInfo {

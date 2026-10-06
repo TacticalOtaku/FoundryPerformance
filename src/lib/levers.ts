@@ -2,7 +2,7 @@ import type { Levers, Overrides, ProfileId, Server, StateDto } from "./types";
 
 export type Scope = { kind: "global" } | { kind: "server"; id: string };
 
-export function applyOverrides(base: Levers, o: Overrides): Levers {
+function applyOverrides(base: Levers, o: Overrides): Levers {
 	const defined = Object.entries(o).filter(([, v]) => v !== undefined && v !== null);
 	return { ...base, ...Object.fromEntries(defined) } as Levers;
 }

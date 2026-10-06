@@ -1,3 +1,4 @@
+use crate::gpu::{self, GpuInfo};
 use crate::model::*;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -11,6 +12,8 @@ pub enum Report {
     WebglLost { early: bool },
     /// Агент загрузился в мир: это настоящий адрес Foundry (для хостингов он отличается от адреса входа).
     FoundryUrl { url: String },
+    /// Строка `UNMASKED_RENDERER_WEBGL` игрового канваса — на чём игра рисует на самом деле.
+    Gpu { renderer: String },
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -19,6 +22,8 @@ pub struct Effects {
     pub servers: bool,
     pub settings: bool,
     pub notice: Option<Notice>,
+    /// Сделан откат ANGLE — второй за сессию не нужен.
+    pub fallback: bool,
 }
 
 fn fps_ok(x: f32) -> bool {
@@ -30,6 +35,7 @@ pub fn validate(r: &Report) -> bool {
         Report::Session { avg, low1, .. } => fps_ok(*avg) && fps_ok(*low1),
         Report::Bench { avg, low1, min, .. } => fps_ok(*avg) && fps_ok(*low1) && fps_ok(*min),
         Report::ProfileChanged { .. } | Report::WebglLost { .. } => true,
+        Report::Gpu { renderer } => renderer.len() <= 512,
         Report::FoundryUrl { url } => {
             url.len() <= 2048 && (url.starts_with("https://") || url.starts_with("http://")) && crate::probe::normalize_url(url).is_ok()
         }
@@ -97,6 +103,8 @@ pub fn apply(
             );
         }
         Report::WebglLost { early: false } => {}
+        // Нужны адаптеры и режим запуска — отдельный путь `apply_gpu`
+        Report::Gpu { .. } => {}
         Report::FoundryUrl { ref url } => {
             let Some(s) = servers.iter_mut().find(|s| s.id == server_id) else { return fx };
             let (Ok(game), Ok(slot)) = (crate::probe::normalize_url(url), crate::probe::normalize_url(&s.url)) else { return fx };
@@ -109,6 +117,34 @@ pub fn apply(
         }
     }
     fx
+}
+
+/// Отчёт о рендерере игры. `persist` — обычный запуск (наши флаги), а не базовый замер;
+/// `fallback_allowed` — откат ANGLE в этой сессии ещё не делали.
+pub fn apply_gpu(renderer: &str, adapters: &[GpuInfo], persist: bool, fallback_allowed: bool, settings: &mut Settings) -> (Verdict, Effects) {
+    let verdict = gpu::classify(renderer, adapters);
+    let mut fx = Effects::default();
+    if !persist {
+        return (verdict, fx);
+    }
+    settings.gpu_check = Some(GpuCheck {
+        verdict: verdict.clone(),
+        renderer: renderer.to_string(),
+        angle: settings.engine.angle,
+        adapter: gpu::best(adapters).map(|a| a.name.clone()).unwrap_or_default(),
+    });
+    fx.settings = true;
+    if verdict == Verdict::Software && fallback_allowed {
+        let from = settings.engine.angle;
+        settings.engine.angle = from.next();
+        fx.fallback = true;
+        fx.notice = Some(
+            Notice::new("notice.softwareRender")
+                .with("from", from.flag_value())
+                .with("to", settings.engine.angle.flag_value()),
+        );
+    }
+    (verdict, fx)
 }
 
 #[cfg(test)]
@@ -211,6 +247,57 @@ mod tests {
         assert!(page_trusted(&"https://www.sqyre.app/games/x/".parse().unwrap(), &origins));
         assert!(!page_trusted(&"https://evil.example/x".parse().unwrap(), &origins));
         assert!(!page_trusted(&"http://x.sqyre.app/game".parse().unwrap(), &origins));
+    }
+
+    const NV: &str = "ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 6GB (0x00001C03) Direct3D11 vs_5_0 ps_5_0, D3D11)";
+    const SWIFT: &str = "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)";
+
+    fn nv() -> GpuInfo {
+        GpuInfo { name: "NVIDIA GeForce GTX 1060 6GB".into(), vram_mb: 6144, vendor_id: 0x10DE }
+    }
+
+    #[test]
+    fn parses_gpu_report_and_limits_its_length() {
+        let r: Report = serde_json::from_str(r#"{"kind":"gpu","renderer":"ANGLE (NVIDIA, x)"}"#).unwrap();
+        assert_eq!(r, Report::Gpu { renderer: "ANGLE (NVIDIA, x)".into() });
+        assert!(validate(&r));
+        assert!(!validate(&Report::Gpu { renderer: "x".repeat(513) }));
+    }
+
+    #[test]
+    fn hardware_check_is_remembered() {
+        let mut settings = Settings::default();
+        let (v, fx) = apply_gpu(NV, &[nv()], true, true, &mut settings);
+        assert_eq!(v, Verdict::Hardware { backend: Some(AngleBackend::D3d11) });
+        assert!(fx.settings && !fx.fallback && fx.notice.is_none());
+        let c = settings.gpu_check.unwrap();
+        assert_eq!((c.renderer.as_str(), c.angle, c.adapter.as_str()), (NV, AngleBackend::D3d11, "NVIDIA GeForce GTX 1060 6GB"));
+    }
+
+    #[test]
+    fn software_render_switches_the_backend_once_per_session() {
+        let mut settings = Settings::default();
+        let (v, fx) = apply_gpu(SWIFT, &[nv()], true, true, &mut settings);
+        assert_eq!(v, Verdict::Software);
+        assert!(fx.fallback && fx.settings);
+        assert_eq!(settings.engine.angle, AngleBackend::D3d11on12);
+        let n = fx.notice.unwrap();
+        assert_eq!((n.key.as_str(), n.params["to"].as_str()), ("notice.softwareRender", "d3d11on12"));
+        // проверка записана с бэкендом, на котором её сделали: после отката она уже не текущая
+        assert_eq!(settings.gpu_check.as_ref().unwrap().angle, AngleBackend::D3d11);
+
+        let (_, fx) = apply_gpu(SWIFT, &[nv()], true, false, &mut settings);
+        assert!(!fx.fallback && fx.notice.is_none());
+        assert_eq!(settings.engine.angle, AngleBackend::D3d11on12);
+    }
+
+    #[test]
+    fn baseline_run_only_answers() {
+        let mut settings = Settings::default();
+        let (v, fx) = apply_gpu(SWIFT, &[nv()], false, true, &mut settings);
+        assert_eq!(v, Verdict::Software);
+        assert_eq!(fx, Effects::default());
+        assert_eq!(settings, Settings::default());
     }
 
     #[test]

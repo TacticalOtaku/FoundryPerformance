@@ -1,9 +1,9 @@
-import { api, updateApi, windowControls } from "./api";
-import { launcherRenderer } from "./gpu-probe";
+import { api, gpuProbe, updateApi, windowControls } from "./api";
+import type { GpuProbe } from "./gpu";
 import { setLocale, t } from "./i18n.svelte";
 import { baseFor, countOverrides, type KnobPosition, overridesFor, type Scope, withOverrides } from "./levers";
 import { probeUrl } from "./status";
-import type { Levers, Overrides, ProbeResult, ProfileId, Server, Settings, StateDto, UpdateInfo, Verdict } from "./types";
+import type { Levers, Overrides, ProbeResult, ProfileId, Server, Settings, StateDto, UpdateInfo } from "./types";
 
 type Screen = "main" | "tuning" | "slot";
 
@@ -40,8 +40,8 @@ class AppStore {
 	editing = $state<Server | null>(null);
 	scope = $state<Scope>({ kind: "global" });
 	probes = $state<Record<string, ProbeResult | "pending">>({});
-	/** Доступность GPU до запуска — по WebGL самого лаунчера (null — не проверено). */
-	launcherVerdict = $state<Verdict | null>(null);
+	/** WebGL2 и аппаратное ускорение в окне лаунчера (null — проба ещё не прошла). */
+	gpu = $state<GpuProbe | null>(null);
 	error = $state<string | null>(null);
 	launching = $state(false);
 	/** Доступное обновление (null — нет или проверка не удалась). */
@@ -66,7 +66,7 @@ class AppStore {
 		const dto = await api.getState();
 		this.dto = dto;
 		this.applyLocale();
-		void this.checkLauncherGpu();
+		void gpuProbe().then((p) => (this.gpu = p));
 		this.selectedId = dto.servers[0]?.id ?? null;
 		for (const s of dto.servers) void this.probe(s);
 		void this.checkUpdate();
@@ -75,16 +75,6 @@ class AppStore {
 		setInterval(() => {
 			for (const s of this.dto?.servers ?? []) void this.probe(s, true);
 		}, 60_000);
-	}
-
-	private async checkLauncherGpu(): Promise<void> {
-		const renderer = launcherRenderer();
-		if (!renderer) return;
-		try {
-			this.launcherVerdict = await api.classifyRenderer(renderer);
-		} catch {
-			this.launcherVerdict = null;
-		}
 	}
 
 	private applyLocale(): void {

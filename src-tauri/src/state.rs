@@ -20,6 +20,7 @@ pub struct Data {
 
 pub struct AppState {
     pub store: Store,
-    pub gpu: Option<GpuInfo>,
+    /// Аппаратные адаптеры DXGI; паспорт и рекомендация берут `gpu::best`.
+    pub adapters: Vec<GpuInfo>,
     pub data: Mutex<Data>,
 }

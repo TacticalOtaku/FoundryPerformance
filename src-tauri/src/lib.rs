@@ -50,14 +50,14 @@ pub fn run() {
             app.manage(installer::commands::UpdateState::default());
             app.manage(windows::WindowMemory::new(store::Store::default_dir()));
             let store = store::Store::new(store::Store::default_dir());
-            let gpu = gpu::detect();
-            let (settings, n1) = store.load_settings(gpu::recommend(gpu.as_ref()));
+            let adapters = gpu::detect_all();
+            let (settings, n1) = store.load_settings(gpu::recommend(gpu::best(&adapters)));
             let (servers, n2) = store.load_servers();
             let (stats, n3) = store.load_stats();
             let lang = locale::effective(settings.locale);
             app.manage(AppState {
                 store,
-                gpu,
+                adapters,
                 data: Mutex::new(Data {
                     settings,
                     servers,

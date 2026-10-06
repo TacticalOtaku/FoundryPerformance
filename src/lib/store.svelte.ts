@@ -1,6 +1,7 @@
 import { api, gpuProbe, updateApi, windowControls } from "./api";
 import type { GpuProbe } from "./gpu";
 import { setLocale, t } from "./i18n.svelte";
+import { initialSelection } from "./intent";
 import { baseFor, countOverrides, type KnobPosition, overridesFor, type Scope, withOverrides } from "./levers";
 import { probeUrl } from "./status";
 import type { Levers, Overrides, ProbeResult, ProfileId, Server, Settings, StateDto, UpdateInfo } from "./types";
@@ -67,7 +68,7 @@ class AppStore {
 		this.dto = dto;
 		this.applyLocale();
 		void gpuProbe().then((p) => (this.gpu = p));
-		this.selectedId = dto.servers[0]?.id ?? null;
+		this.selectedId = initialSelection(dto.servers, dto.settings.lastServer);
 		for (const s of dto.servers) void this.probe(s);
 		void this.checkUpdate();
 		setInterval(() => void this.checkUpdate(), UPDATE_EVERY_MS);

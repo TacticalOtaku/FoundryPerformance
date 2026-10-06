@@ -64,15 +64,14 @@ impl Store {
         fs::rename(&tmp, self.dir.join(name))
     }
 
-    pub fn load_settings(&self, fallback: ProfileId) -> (Settings, Option<Notice>) {
-        let fresh = Settings { profile: fallback, ..Settings::default() };
+    pub fn load_settings(&self) -> (Settings, Option<Notice>) {
         match self.read::<Settings>("settings.json") {
             Ok(Some(mut s)) => {
                 s.schema = SCHEMA;
                 (s, None)
             }
-            Ok(None) => (fresh, None),
-            Err(n) => (fresh, Some(n)),
+            Ok(None) => (Settings::default(), None),
+            Err(n) => (Settings::default(), Some(n)),
         }
     }
 
@@ -116,10 +115,10 @@ mod tests {
     }
 
     #[test]
-    fn missing_settings_use_fallback_profile() {
+    fn missing_settings_start_on_balance() {
         let (_d, s) = tmp();
-        let (settings, notice) = s.load_settings(ProfileId::Potato);
-        assert_eq!(settings.profile, ProfileId::Potato);
+        let (settings, notice) = s.load_settings();
+        assert_eq!(settings.profile, ProfileId::Balance);
         assert!(notice.is_none());
     }
 
@@ -132,7 +131,7 @@ mod tests {
             ..Settings::default()
         };
         s.save_settings(&st).unwrap();
-        assert_eq!(s.load_settings(ProfileId::Potato).0, st);
+        assert_eq!(s.load_settings().0, st);
     }
 
     #[test]

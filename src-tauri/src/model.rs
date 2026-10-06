@@ -58,35 +58,6 @@ impl AngleBackend {
     }
 }
 
-/// На чём игра рисует на самом деле — по строке рендерера WebGL (см. `gpu::classify`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum Verdict {
-    Hardware { backend: Option<AngleBackend> },
-    Software,
-    WrongGpu { backend: Option<AngleBackend> },
-    Unknown,
-}
-
-/// Последняя проверка ускорения в обычном запуске.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GpuCheck {
-    pub verdict: Verdict,
-    pub renderer: String,
-    /// Бэкенд ANGLE из настроек на момент проверки.
-    pub angle: AngleBackend,
-    /// Имя лучшего адаптера на момент проверки (пусто, если DXGI ничего не нашёл).
-    pub adapter: String,
-}
-
-impl GpuCheck {
-    /// Проверка относится к текущей конфигурации: тот же бэкенд и та же видеокарта.
-    pub fn is_current(&self, angle: AngleBackend, adapter: &str) -> bool {
-        self.angle == angle && self.adapter == adapter
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Levers {
@@ -185,8 +156,6 @@ pub struct Settings {
     pub engine: EngineSettings,
     pub locale: Locale,
     pub theme: Theme,
-    /// Пишет только лаунчер (см. `commands::merge_settings`).
-    pub gpu_check: Option<GpuCheck>,
 }
 
 impl Default for Settings {
@@ -198,7 +167,6 @@ impl Default for Settings {
             engine: EngineSettings::default(),
             locale: Locale::Auto,
             theme: Theme::Auto,
-            gpu_check: None,
         }
     }
 }
@@ -305,26 +273,9 @@ mod tests {
     }
 
     #[test]
-    fn verdict_json_shape() {
-        let hw = Verdict::Hardware { backend: Some(AngleBackend::D3d11) };
-        assert_eq!(serde_json::to_string(&hw).unwrap(), r#"{"kind":"hardware","backend":"d3d11"}"#);
-        assert_eq!(serde_json::to_string(&Verdict::WrongGpu { backend: None }).unwrap(), r#"{"kind":"wrongGpu","backend":null}"#);
-        assert_eq!(serde_json::to_string(&Verdict::Software).unwrap(), r#"{"kind":"software"}"#);
-        assert_eq!(serde_json::to_string(&Verdict::Unknown).unwrap(), r#"{"kind":"unknown"}"#);
-    }
-
-    #[test]
-    fn settings_without_gpu_check_still_load() {
-        let s: Settings = serde_json::from_str(r#"{"schema":1,"profile":"potato"}"#).unwrap();
-        assert_eq!(s.gpu_check, None);
+    fn settings_from_older_versions_still_load() {
+        let json = r#"{"schema":1,"profile":"potato","gpuCheck":{"verdict":{"kind":"software"},"renderer":"r","angle":"d3d11","adapter":"RTX"},"motion":"reduced"}"#;
+        let s: Settings = serde_json::from_str(json).unwrap();
         assert_eq!(s.profile, ProfileId::Potato);
-    }
-
-    #[test]
-    fn gpu_check_is_stale_after_backend_or_gpu_change() {
-        let c = GpuCheck { verdict: Verdict::Software, renderer: "r".into(), angle: AngleBackend::D3d11, adapter: "RTX".into() };
-        assert!(c.is_current(AngleBackend::D3d11, "RTX"));
-        assert!(!c.is_current(AngleBackend::Gl, "RTX"));
-        assert!(!c.is_current(AngleBackend::D3d11, "GTX"));
     }
 }

@@ -1,4 +1,5 @@
 import { g } from "./foundry";
+import { rendererName } from "./gpu";
 import { collectVideos } from "./levers/video";
 
 export const AGENT_VERSION = "0.2.2";
@@ -50,14 +51,7 @@ export function collectDiag(extra: Record<string, unknown>): Record<string, unkn
 			});
 		}
 	}
-	let gpu: string | undefined;
-	try {
-		const gl = r?.gl;
-		const ext = gl?.getExtension("WEBGL_debug_renderer_info");
-		gpu = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : undefined;
-	} catch {
-		gpu = undefined;
-	}
+	const gpu = rendererName(r);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const modules = game?.modules ? [...game.modules].filter((m: any) => m.active).map((m: any) => ({ id: m.id, version: m.version })) : [];
 	return {

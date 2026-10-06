@@ -1,4 +1,4 @@
-import type { InstallProgress, ModeDto, ProbeResult, Server, Settings, StateDto, UpdateInfo } from "./types";
+import type { InstallProgress, ModeDto, ProbeResult, Server, Settings, StateDto, UpdateInfo, Verdict } from "./types";
 
 const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -18,6 +18,7 @@ export const api = {
 	deleteServer: (id: string) => call<Server[]>("delete_server", { id }),
 	saveSettings: (settings: Settings) => call<Settings>("save_settings", { settings }),
 	probe: (url: string) => call<ProbeResult>("probe_server", { url }),
+	classifyRenderer: (renderer: string) => call<Verdict>("classify_renderer", { renderer }),
 	launch: (serverId: string, safeMode: boolean) => call<void>("launch", { serverId, safeMode }),
 	clearNotice: () => call<void>("clear_notice"),
 	cacheSize: () => call<number>("cache_size"),

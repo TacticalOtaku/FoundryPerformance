@@ -117,9 +117,14 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 		case "save_settings":
 			settings = args.settings as Settings;
 			return settings;
+		case "classify_renderer": {
+			const l = new URLSearchParams(location.search).get("launcher") ?? "on";
+			const v: Record<string, Verdict> = { on: { kind: "hardware", backend: "d3d11" }, software: { kind: "software" }, wrongGpu: { kind: "wrongGpu", backend: "d3d11" } };
+			return v[l] ?? { kind: "unknown" };
+		}
 		case "probe_server":
 			await delay(700);
-			if (String(args.url).includes("sqyre.app/games")) return { reachable: true, foundry: false, active: false, version: null, world: null, system: null, users: null };
+			if (String(args.url).includes("sqyre.app/games")) return { reachable: true, foundry: true, active: true, version: null, world: null, system: null, users: null };
 			return String(args.url).includes("192.168")
 				? { reachable: false, foundry: false, active: false, version: null, world: null, system: null, users: null }
 				: { reachable: true, foundry: true, active: true, version: "14.349", world: "strahd", system: "dnd5e", users: 3 };

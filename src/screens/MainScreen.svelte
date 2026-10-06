@@ -19,7 +19,7 @@
 	const lcdCaption = $derived(stats?.lastBench ? t("main.lastBench") : stats?.lastSession ? t("main.lastSession") : t("main.noData"));
 	// «NVIDIA GeForce RTX 5070» → «RTX 5070»: марка на табличке не нужна
 	const gpuName = $derived(dto.gpu?.name.replace(/^(NVIDIA|AMD|Intel\(R\))\s+(GeForce\s+|Radeon\s+(?=RX))?/i, "") ?? "");
-	const accel = $derived(accelView(dto.settings, dto.gpuCheckCurrent));
+	const accel = $derived(accelView(dto.settings, dto.gpuCheckCurrent, app.launcherVerdict));
 	const code = (i: number) => `A${i + 1}`;
 </script>
 
@@ -84,7 +84,7 @@
 				<dt>API</dt>
 				<dd>{accel.api.toUpperCase()}</dd>
 				<dt>{t("accel.label")}</dt>
-				<dd class="accel" {@attach tip(() => ({ title: t(`accel.${accel.state}`), body: t(`accel.tip.${accel.state}`) }))}>
+				<dd class="accel" {@attach tip(() => ({ title: t(`accel.${accel.state}`), body: t(accel.source === "launcher" ? `accel.tip.launcher.${accel.state}` : `accel.tip.${accel.state}`) }))}>
 					<Led state={accel.led} label="" />{t(`accel.${accel.state}`)}
 				</dd>
 			</dl>

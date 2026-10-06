@@ -85,6 +85,8 @@
   "accel.tip.software": "Last time the game rendered without the GPU. Pick another engine in Tuning or update the GPU driver.",
   "accel.tip.wrongGpu": "The game renders on the integrated GPU while a discrete one is present. Make the discrete GPU the preferred one in the NVIDIA or AMD control panel.",
   "accel.tip.unchecked": "The status appears after you launch the game. It is checked again after an engine or GPU change.",
+  "accel.tip.launcher.on": "The GPU is available. The game's exact engine and GPU will be known after it launches.",
+  "accel.tip.launcher.software": "The launcher got no access to the GPU — the game likely won't either. Update the GPU driver.",
   "unit.gb": "GB",
   "unit.mb": "MB",
   "cache.title": "GAME CACHE",

@@ -1,4 +1,5 @@
-import type { InstallProgress, ModeDto, ProbeResult, Server, Settings, StateDto, UpdateInfo, Verdict } from "./types";
+import { type GpuProbe, probeGpu } from "./gpu";
+import type { InstallProgress, ModeDto, ProbeResult, Server, Settings, StateDto, UpdateInfo } from "./types";
 
 const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -18,12 +19,21 @@ export const api = {
 	deleteServer: (id: string) => call<Server[]>("delete_server", { id }),
 	saveSettings: (settings: Settings) => call<Settings>("save_settings", { settings }),
 	probe: (url: string) => call<ProbeResult>("probe_server", { url }),
-	classifyRenderer: (renderer: string) => call<Verdict>("classify_renderer", { renderer }),
 	launch: (serverId: string, safeMode: boolean) => call<void>("launch", { serverId, safeMode }),
 	clearNotice: () => call<void>("clear_notice"),
 	cacheSize: () => call<number>("cache_size"),
 	clearCache: () => call<{ freed: number; pending: boolean }>("clear_cache")
 };
+
+/** Проба видеокарты; в браузерном превью её можно подменить: `?gpu=ok|software|none`. */
+export async function gpuProbe(): Promise<GpuProbe> {
+	if (!inTauri) {
+		const { mockGpu } = await import("./mock");
+		const forced = mockGpu();
+		if (forced) return forced;
+	}
+	return probeGpu();
+}
 
 export const setupApi = {
 	getMode: () => call<ModeDto>("get_mode"),

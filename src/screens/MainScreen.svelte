@@ -1,10 +1,8 @@
 <script lang="ts">
 	import Knob from "../components/Knob.svelte";
-	import Led from "../components/Led.svelte";
 	import LaunchButton from "../components/LaunchButton.svelte";
 	import Lcd from "../components/Lcd.svelte";
 	import Slot from "../components/Slot.svelte";
-	import { accelView } from "../lib/accel";
 	import { noteLines } from "../lib/changelog";
 	import { t } from "../lib/i18n.svelte";
 	import { knobPosition } from "../lib/levers";
@@ -17,9 +15,6 @@
 	const stats = $derived(sel ? dto.stats[sel.id] : undefined);
 	const lcdValue = $derived(stats?.lastBench?.avg ?? stats?.lastSession?.avg ?? null);
 	const lcdCaption = $derived(stats?.lastBench ? t("main.lastBench") : stats?.lastSession ? t("main.lastSession") : t("main.noData"));
-	// «NVIDIA GeForce RTX 5070» → «RTX 5070»: марка на табличке не нужна
-	const gpuName = $derived(dto.gpu?.name.replace(/^(NVIDIA|AMD|Intel\(R\))\s+(GeForce\s+|Radeon\s+(?=RX))?/i, "") ?? "");
-	const accel = $derived(accelView(dto.settings, dto.gpuCheckCurrent, app.launcherVerdict));
 	const code = (i: number) => `A${i + 1}`;
 </script>
 
@@ -75,22 +70,6 @@
 			</button>
 		{/if}
 		<Knob value={knob} onchange={(p) => app.setKnob(p)} />
-		{#if dto.gpu}
-			<dl class="passport mono">
-				<dt>GPU</dt>
-				<dd title={dto.gpu.name}>{gpuName}</dd>
-				<dt>VRAM</dt>
-				<dd>{Math.round(dto.gpu.vramMb / 1024)} {t("unit.gb")}</dd>
-				<dt>API</dt>
-				<dd>{accel.api.toUpperCase()}</dd>
-				<dt>{t("accel.label")}</dt>
-				<dd class="accel" {@attach tip(() => ({ title: t(`accel.${accel.state}`), body: t(accel.source === "launcher" ? `accel.tip.launcher.${accel.state}` : `accel.tip.${accel.state}`) }))}>
-					<Led state={accel.led} label="" />{t(`accel.${accel.state}`)}
-				</dd>
-			</dl>
-		{:else}
-			<div class="passport mono">{t("gpu.unknown")}</div>
-		{/if}
 		<button class="tune silk" onclick={() => app.openTuning(sel ? { kind: "server", id: sel.id } : { kind: "global" })}>
 			{t("main.tune")}
 		</button>
@@ -176,7 +155,6 @@
 		gap: 14px;
 	}
 	.right > :global(.lcd),
-	.passport,
 	.tune,
 	.update {
 		justify-self: stretch;
@@ -247,33 +225,6 @@
 		right: 6px;
 		bottom: 6px;
 		rotate: 10deg;
-	}
-	/* табличка с данными железа, как шильдик на корпусе */
-	.passport {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 3px 10px;
-		margin: 0;
-		padding: 8px 10px;
-		color: var(--ink-3);
-		background: var(--well);
-		box-shadow: var(--recess);
-	}
-	.passport dd {
-		margin: 0;
-		text-align: right;
-		color: var(--ink);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	/* ореол лампочки шире строки — не обрезаем; статусы короткие, многоточие не нужно */
-	.passport .accel {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: 8px;
-		overflow: visible;
 	}
 	.tune {
 		padding: 10px;

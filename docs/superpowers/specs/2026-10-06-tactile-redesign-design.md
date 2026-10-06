@@ -143,8 +143,8 @@
    добавление сервера.
 
 ### 5.4 Что уходит
-`Knob.svelte` (ручка), `Lcd.svelte` (ЖК), винты по углам, гравировка, шлифовка панели,
-пунктир пустого слота.
+`Knob.svelte` (ручка), ЖК на главном экране, винты по углам, гравировка, шлифовка панели,
+пунктир пустого слота. Сам `Lcd.svelte` остаётся: его использует установщик до подпроекта 4.
 
 ## 6. «Настройка» и редактор слота
 
@@ -200,7 +200,7 @@ src/styles/materials.css   — классы .pane, .well, .lens, .drop, кант
 src/styles/base.css        — шрифты, сброс, фокус
 src/lib/motion.ts          — eases, flow(drop), glide(group), breathe, drift, launchBreath,
                              openScreen; пауза по blur/visibilitychange; учёт data-motion
-src/lib/palette.ts, aura.ts, motion-pref.ts, profile-tip.ts
+src/lib/palette.ts, aura.ts, motion-pref.ts, profile-tip.ts, radio.ts, lens.ts
 src/components/Field.svelte    — туман (пятна, шум, дрейф)
 src/components/Groove.svelte   — радиогруппа-паз с каплей (замена Segmented), стрелки, Home/End
 src/components/DropList.svelte — вертикальный список с каплей и подсветкой (серверы)
@@ -208,7 +208,7 @@ src/components/Lens.svelte     — линза FPS: подпись, число, �
 src/components/Ticks.svelte    — линейка баров
 src/components/Swatches.svelte — выбор акцента
 src/components/{TitleBar,Slot,LaunchButton,Led,Toggle,Fader,Tooltip,VersionTag,CacheControl}.svelte — перерисованы
-src/components/{Knob,Lcd,Segmented}.svelte — удаляются
+src/components/{Knob,Segmented}.svelte — удаляются; Lcd.svelte остаётся для InstallScreen
 ```
 
 - Алиасы старых токенов нужны `InstallScreen` и `UninstallScreen`: их раскладка в этом
@@ -244,8 +244,9 @@ src/components/{Knob,Lcd,Segmented}.svelte — удаляются
 
 - vitest: `palette`, `aura`, `motion-pref`, `profile-tip`; существующие тесты (`accel`, `status`,
   `levers` и др.) зелёные.
-- Компонентные тесты на happy-dom: `Groove` — клик и стрелки меняют `aria-checked` и зовут
-  `onchange`; `Lens` — без истории нет линейки, при обновлении показывает проценты.
+- Логика компонентов вынесена в чистые функции и покрыта vitest (компонентных тестов в проекте
+  нет): `radio.ts` — `nextIndex` для стрелок, Home/End и пропуска «РУЧ»; `lens.ts` — `lensView`
+  (без данных, замер, сеанс, проценты обновления) и `tickBars`.
 - cargo: `Settings` без новых полей читается с `Mint` / `Full`; круговая сериализация;
   `merge_settings` сохраняет `accent` и `motion`.
 - `npm run check`, `cargo clippy` чистые, `npm run dist` собирается.

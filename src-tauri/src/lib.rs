@@ -127,6 +127,7 @@ pub fn run() {
             commands::toggle_fullscreen,
             commands::cache_size,
             commands::clear_cache,
+            commands::classify_renderer,
             installer::commands::get_mode,
             installer::commands::pick_install_dir,
             installer::commands::check_install_dir,

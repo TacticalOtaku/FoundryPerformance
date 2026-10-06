@@ -12,6 +12,7 @@ fn main() {
             "toggle_fullscreen",
             "cache_size",
             "clear_cache",
+            "classify_renderer",
             "get_mode",
             "pick_install_dir",
             "check_install_dir",

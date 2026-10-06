@@ -145,6 +145,23 @@ pub enum Theme {
     Night,
 }
 
+/// Акцент интерфейса; оттенки — в `src/lib/palette.ts` (палитра Tactile из AIM).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Accent {
+    #[default]
+    Peach,
+    Amber,
+    Sage,
+    Mint,
+    Azure,
+    Periwinkle,
+    Lavender,
+    Orchid,
+    Rose,
+    Steel,
+}
+
 pub const SCHEMA: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -156,6 +173,9 @@ pub struct Settings {
     pub engine: EngineSettings,
     pub locale: Locale,
     pub theme: Theme,
+    pub accent: Accent,
+    /// Последний запущенный сервер; пишет только лаунчер (см. `commands::merge_settings`).
+    pub last_server: Option<String>,
 }
 
 impl Default for Settings {
@@ -167,6 +187,8 @@ impl Default for Settings {
             engine: EngineSettings::default(),
             locale: Locale::Auto,
             theme: Theme::Auto,
+            accent: Accent::Peach,
+            last_server: None,
         }
     }
 }
@@ -245,6 +267,18 @@ mod tests {
         assert_eq!(serde_json::to_string(&ProfileId::Potato).unwrap(), "\"potato\"");
         assert_eq!(serde_json::to_string(&VideoMode::PauseUnfocused).unwrap(), "\"pauseUnfocused\"");
         assert_eq!(serde_json::to_string(&AngleBackend::D3d11on12).unwrap(), "\"d3d11on12\"");
+    }
+
+    #[test]
+    fn accent_and_last_server_default_and_roundtrip() {
+        let s: Settings = serde_json::from_str(r#"{"schema":1}"#).unwrap();
+        assert_eq!(s.accent, Accent::Peach);
+        assert_eq!(s.last_server, None);
+        let s = Settings { accent: Accent::Steel, last_server: Some("a1".into()), ..Settings::default() };
+        let json = serde_json::to_string(&s).unwrap();
+        assert!(json.contains(r#""accent":"steel""#), "{json}");
+        assert!(json.contains(r#""lastServer":"a1""#), "{json}");
+        assert_eq!(serde_json::from_str::<Settings>(&json).unwrap(), s);
     }
 
     #[test]

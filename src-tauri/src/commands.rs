@@ -153,6 +153,19 @@ pub fn gpu_check_current(settings: &Settings, adapters: &[gpu::GpuInfo]) -> bool
     settings.gpu_check.as_ref().is_some_and(|c| c.is_current(settings.engine.angle, adapter))
 }
 
+/// Рендерер WebGL самого лаунчера: доступность GPU до запуска игры. Ничего не сохраняет.
+pub fn classify_launcher(renderer: &str, adapters: &[gpu::GpuInfo]) -> Result<Verdict, String> {
+    if renderer.len() > 512 {
+        return Err("rejected".into());
+    }
+    Ok(gpu::classify(renderer, adapters))
+}
+
+#[tauri::command]
+pub fn classify_renderer(state: State<'_, AppState>, renderer: String) -> Result<Verdict, String> {
+    classify_launcher(&renderer, &state.adapters)
+}
+
 #[tauri::command]
 pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<Settings, String> {
     let mut d = state.data.lock().expect("state poisoned");
@@ -320,6 +333,14 @@ mod tests {
         let switched = Settings { engine: EngineSettings { angle: AngleBackend::Gl, ..EngineSettings::default() }, ..s.clone() };
         assert!(!gpu_check_current(&switched, std::slice::from_ref(&rtx)));
         assert!(!gpu_check_current(&Settings::default(), &[rtx]));
+    }
+
+    #[test]
+    fn launcher_renderer_is_classified_and_length_limited() {
+        let rtx = gpu::GpuInfo { name: "RTX".into(), vram_mb: 12288, vendor_id: 0x10DE };
+        let nv = "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11)";
+        assert_eq!(classify_launcher(nv, std::slice::from_ref(&rtx)), Ok(Verdict::Hardware { backend: Some(AngleBackend::D3d11) }));
+        assert!(classify_launcher(&"x".repeat(513), &[rtx]).is_err());
     }
 }
 

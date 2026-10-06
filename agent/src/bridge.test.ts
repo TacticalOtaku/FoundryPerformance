@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ask, ipcStatus, send, toggleFullscreen } from "./bridge";
+import { ipcStatus, send, toggleFullscreen } from "./bridge";
 
 const g = globalThis as Record<string, unknown>;
 
@@ -19,26 +19,6 @@ describe("send", () => {
 		expect(() => send({ kind: "webglLost", early: true })).not.toThrow();
 		g.__TAURI_INTERNALS__ = { invoke: vi.fn().mockRejectedValue(new Error("denied")) };
 		expect(() => send({ kind: "webglLost", early: true })).not.toThrow();
-	});
-});
-
-describe("ask", () => {
-	it("returns the host answer", async () => {
-		g.__TAURI_INTERNALS__ = { invoke: vi.fn().mockResolvedValue({ kind: "software" }) };
-		await expect(ask({ kind: "gpu", renderer: "x" })).resolves.toEqual({ kind: "software" });
-	});
-
-	it("returns null without IPC, on rejection and on a throwing invoke", async () => {
-		vi.spyOn(console, "warn").mockImplementation(() => {});
-		await expect(ask({ kind: "gpu", renderer: "x" })).resolves.toBeNull();
-		g.__TAURI_INTERNALS__ = { invoke: vi.fn().mockRejectedValue("rejected") };
-		await expect(ask({ kind: "gpu", renderer: "x" })).resolves.toBeNull();
-		g.__TAURI_INTERNALS__ = {
-			invoke: vi.fn(() => {
-				throw new Error("sync");
-			})
-		};
-		await expect(ask({ kind: "gpu", renderer: "x" })).resolves.toBeNull();
 	});
 });
 

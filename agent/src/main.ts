@@ -1,10 +1,11 @@
 import { configFor, initAdaptive, refreshFromDeltas, resetTimers, stepAdaptive } from "./adaptive";
 import { runBench } from "./bench";
-import { ipcStatus, send, toggleFullscreen } from "./bridge";
+import { ask, ipcStatus, send, toggleFullscreen } from "./bridge";
 import { coreValues, defaultValues, reconcile, writePreboot } from "./client-settings";
 import { AGENT_VERSION, collectDiag, downloadDiag } from "./diag";
 import { g } from "./foundry";
 import { FrameStats, summarize } from "./fps-meter";
+import { rendererName, verdictMessage } from "./gpu";
 import { Hud } from "./hud";
 import { fmt, strings } from "./i18n";
 import { setUiBlur } from "./levers/blur";
@@ -12,7 +13,7 @@ import { FocusThrottle } from "./levers/focus";
 import { CanvasResolution } from "./levers/resolution";
 import { collectVideos, VideoController } from "./levers/video";
 import { moduleValues } from "./modules";
-import type { Boot, ProfileId } from "./types";
+import type { Boot, ProfileId, Verdict } from "./types";
 
 function whenDom(fn: () => void): void {
 	if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn, { once: true });
@@ -57,6 +58,9 @@ function start(boot: Boot): void {
 	let skipped = 0;
 	let benchSamples: number[] | null = null;
 	let tickerAttached = false;
+	// Проверка GPU ждёт ответа на foundryUrl: до него страница игры на хостинге ещё не доверенная
+	let urlAck: Promise<unknown> = Promise.resolve(null);
+	let gpuChecked = false;
 	// Базовый замер: геттеры ниже отдают «ничего», и рычаги становятся no-op
 	let measureOnly = boot.measureOnly;
 	const stats = new FrameStats(4096);
@@ -129,6 +133,16 @@ function start(boot: Boot): void {
 		const view = g.canvas.app.renderer?.view ?? g.canvas.app.canvas;
 		view?.addEventListener?.("webglcontextlost", () => send({ kind: "webglLost", early: performance.now() - readyAt < 60000 }));
 		focus.apply();
+	}
+
+	/** Один раз за загрузку мира: на чём игра рисует на самом деле. */
+	async function checkGpu(): Promise<void> {
+		if (gpuChecked) return;
+		const renderer = rendererName(g.canvas?.app?.renderer);
+		if (!renderer) return;
+		gpuChecked = true;
+		const msg = verdictMessage(await ask<Verdict>({ kind: "gpu", renderer }), t);
+		if (msg) g.ui?.notifications?.warn(msg, { permanent: true });
 	}
 
 	function loop(): void {
@@ -243,10 +257,11 @@ function start(boot: Boot): void {
 				});
 				// Настоящий адрес Foundry: у хостингов он отличается от страницы входа.
 				// Без query — там бывают токены сессии.
-				send({ kind: "foundryUrl", url: location.origin + location.pathname });
+				urlAck = ask({ kind: "foundryUrl", url: location.origin + location.pathname });
 				video.setMode(levers.video);
 				await applySettings();
 				attachTicker();
+				void urlAck.then(checkGpu);
 				resolution.apply(targetScale());
 				window.addEventListener("blur", () => onFocusChange(false));
 				window.addEventListener("focus", () => onFocusChange(true));
@@ -258,6 +273,8 @@ function start(boot: Boot): void {
 			});
 			hooks.on("canvasReady", () => {
 				attachTicker();
+				// canvasReady срабатывает и до ready — проверяем только после него
+				if (readyAt) void urlAck.then(checkGpu);
 				// Foundry при подготовке сцены выставляет тикеру свой maxFPS (≤ 60) — возвращаем наш потолок
 				focus.apply();
 				resolution.apply(targetScale());

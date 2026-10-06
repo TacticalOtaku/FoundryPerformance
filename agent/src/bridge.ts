@@ -5,7 +5,8 @@ export type Report =
 	| { kind: "bench"; avg: number; low1: number; min: number; profile: ProfileId }
 	| { kind: "profileChanged"; profile: ProfileId }
 	| { kind: "webglLost"; early: boolean }
-	| { kind: "foundryUrl"; url: string };
+	| { kind: "foundryUrl"; url: string }
+	| { kind: "gpu"; renderer: string };
 
 /**
  * Состояние канала к лаунчеру — для диагностики (F10).
@@ -22,7 +23,7 @@ export function ipcStatus(): IpcStatus {
 }
 
 /** Единственный канал наружу. Если Tauri не выдал IPC этому origin — ничего не ломаем, только запоминаем. */
-function invoke(cmd: string, args: unknown = {}): void {
+function invoke(cmd: string, args: unknown = {}): Promise<unknown> {
 	const internals = (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ as
 		| { invoke?: (cmd: string, args: unknown) => Promise<unknown> }
 		| undefined;
@@ -32,21 +33,32 @@ function invoke(cmd: string, args: unknown = {}): void {
 			warned = true;
 			console.warn("[foundry-performance] IPC недоступен: отчёты агента не доходят до лаунчера");
 		}
-		return;
+		return Promise.resolve(null);
 	}
-	const fail = (e: unknown) => (status = { state: "rejected", error: String(e) });
+	const fail = (e: unknown) => {
+		status = { state: "rejected", error: String(e) };
+		return null;
+	};
 	try {
-		internals.invoke(cmd, args).then(() => (status = { state: "ok" }), fail);
+		return internals.invoke(cmd, args).then((v) => {
+			status = { state: "ok" };
+			return v ?? null;
+		}, fail);
 	} catch (e) {
-		fail(e);
+		return Promise.resolve(fail(e));
 	}
 }
 
 export function send(report: Report): void {
-	invoke("report_telemetry", { report });
+	void invoke("report_telemetry", { report });
+}
+
+/** Отчёт с ответом лаунчера; null — канала нет или отчёт отклонён. */
+export function ask<T>(report: Report): Promise<T | null> {
+	return invoke("report_telemetry", { report }) as Promise<T | null>;
 }
 
 /** F11: окно, в котором нажали, уходит в полный экран без рамки и обратно. */
 export function toggleFullscreen(): void {
-	invoke("toggle_fullscreen");
+	void invoke("toggle_fullscreen");
 }

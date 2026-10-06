@@ -130,13 +130,26 @@ pub fn delete_server(state: State<'_, AppState>, id: String) -> Result<Vec<Serve
     let mut d = state.data.lock().expect("state poisoned");
     d.servers.retain(|s| s.id != id);
     d.stats.remove(&id);
+    if forget_server(&mut d.settings, &id) {
+        let _ = state.store.save_settings(&d.settings);
+    }
     state.store.save_servers(&d.servers).map_err(|_| "err.saveFailed".to_string())?;
     let _ = state.store.save_stats(&d.stats);
     Ok(d.servers.clone())
 }
 
-pub fn merge_settings(_stored: &Settings, incoming: Settings) -> Settings {
-    Settings { schema: SCHEMA, ..incoming }
+/// Последний запущенный сервер пишет только лаунчер: копия настроек в интерфейсе может быть старше.
+pub fn merge_settings(stored: &Settings, incoming: Settings) -> Settings {
+    Settings { schema: SCHEMA, last_server: stored.last_server.clone(), ..incoming }
+}
+
+/// Удалённый сервер больше не «последний запущенный». `true` — настройки изменились.
+pub fn forget_server(settings: &mut Settings, id: &str) -> bool {
+    if settings.last_server.as_deref() != Some(id) {
+        return false;
+    }
+    settings.last_server = None;
+    true
 }
 
 #[tauri::command]
@@ -160,7 +173,14 @@ pub async fn launch(app: AppHandle, state: State<'_, AppState>, server_id: Strin
         d.servers.iter().find(|s| s.id == server_id).cloned().ok_or_else(|| "err.serverMissing".to_string())?
     };
     let mode = if safe_mode { LaunchMode::Safe } else { LaunchMode::Normal };
-    start_game(&app, &state, &server, mode)
+    start_game(&app, &state, &server, mode)?;
+    // При следующем открытии лаунчер предложит продолжить с этого сервера
+    let mut d = state.data.lock().expect("state poisoned");
+    if d.settings.last_server.as_deref() != Some(server.id.as_str()) {
+        d.settings.last_server = Some(server.id);
+        let _ = state.store.save_settings(&d.settings);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -276,6 +296,24 @@ mod tests {
         assert_eq!(a(&["--safe", "--open", "vtt.x"]), Some(("vtt.x".to_string(), LaunchMode::Safe)));
         assert_eq!(a(&["--open", "vtt.x", "--baseline"]), Some(("vtt.x".to_string(), LaunchMode::Baseline)));
         assert_eq!(a(&[]), None);
+    }
+
+    #[test]
+    fn saving_settings_keeps_the_last_launched_server() {
+        let stored = Settings { last_server: Some("a1".into()), ..Settings::default() };
+        let incoming = Settings { profile: ProfileId::Potato, last_server: None, ..Settings::default() };
+        let merged = merge_settings(&stored, incoming);
+        assert_eq!(merged.last_server.as_deref(), Some("a1"));
+        assert_eq!(merged.profile, ProfileId::Potato);
+    }
+
+    #[test]
+    fn deleting_the_last_launched_server_forgets_it() {
+        let mut s = Settings { last_server: Some("a1".into()), ..Settings::default() };
+        assert!(!forget_server(&mut s, "a2"));
+        assert_eq!(s.last_server.as_deref(), Some("a1"));
+        assert!(forget_server(&mut s, "a1"));
+        assert_eq!(s.last_server, None);
     }
 }
 

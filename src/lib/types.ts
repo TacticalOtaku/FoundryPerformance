@@ -3,6 +3,20 @@ import type { Levers, ProfileId } from "../../agent/src/types";
 
 export type Overrides = Partial<Levers>;
 export type AngleBackend = "d3d11" | "d3d11on12" | "gl" | "vulkan";
+
+/** Зеркало Rust `model::Verdict`. */
+export type Verdict =
+	| { kind: "hardware"; backend: AngleBackend | null }
+	| { kind: "software" }
+	| { kind: "wrongGpu"; backend: AngleBackend | null }
+	| { kind: "unknown" };
+
+export interface GpuCheck {
+	verdict: Verdict;
+	renderer: string;
+	angle: AngleBackend;
+	adapter: string;
+}
 export type LocalePref = "auto" | "ru" | "en";
 export type ThemePref = "auto" | "day" | "night";
 export type LedState = "ok" | "warn" | "err" | "off" | "pending";
@@ -20,6 +34,7 @@ export interface Settings {
 	engine: EngineSettings;
 	locale: LocalePref;
 	theme: ThemePref;
+	gpuCheck: GpuCheck | null;
 }
 
 export interface Server {
@@ -67,6 +82,7 @@ export interface StateDto {
 	stats: Record<string, ServerStats>;
 	presets: Record<ProfileId, Levers>;
 	gpu: GpuInfo | null;
+	gpuCheckCurrent: boolean;
 	recommended: ProfileId;
 	notice: Notice | null;
 	locale: "ru" | "en";

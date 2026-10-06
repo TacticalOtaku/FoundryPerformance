@@ -64,6 +64,7 @@ pub fn run() {
                     stats,
                     notice: n1.or(n2).or(n3),
                     current_server: None,
+                    current_mode: commands::LaunchMode::Normal,
                     session_fallback_done: false,
                     session_origins: Vec::new(),
                 }),

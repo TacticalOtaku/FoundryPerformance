@@ -1,5 +1,5 @@
 use crate::model::*;
-use crate::state::AppState;
+use crate::state::{AppState, Data};
 use crate::{agent, cache, engine_flags, gpu, locale, probe, profile, store, telemetry, windows};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -23,6 +23,7 @@ pub struct StateDto {
     stats: BTreeMap<String, ServerStats>,
     presets: BTreeMap<ProfileId, Levers>,
     gpu: Option<gpu::GpuInfo>,
+    gpu_check_current: bool,
     recommended: ProfileId,
     notice: Option<Notice>,
     locale: &'static str,
@@ -80,6 +81,7 @@ fn start_game(app: &AppHandle, state: &AppState, server: &Server, mode: LaunchMo
     let launch = {
         let mut d = state.data.lock().expect("state poisoned");
         d.current_server = Some(server.id.clone());
+        d.current_mode = mode;
         d.session_fallback_done = false;
         d.session_origins = telemetry::session_origins(server);
         build_launch(&d.settings, server, mode)?
@@ -105,6 +107,7 @@ pub fn get_state(app: AppHandle, state: State<'_, AppState>) -> StateDto {
         stats: d.stats.clone(),
         presets: profile::presets(),
         gpu: gpu::best(&state.adapters).cloned(),
+        gpu_check_current: gpu_check_current(&d.settings, &state.adapters),
         recommended: gpu::recommend(gpu::best(&state.adapters)),
         notice: d.notice.clone(),
         locale: locale::effective(d.settings.locale),
@@ -144,6 +147,12 @@ pub fn merge_settings(stored: &Settings, incoming: Settings) -> Settings {
     Settings { schema: SCHEMA, gpu_check: stored.gpu_check.clone(), ..incoming }
 }
 
+/// Вердикт последней проверки относится к текущим бэкенду и видеокарте.
+pub fn gpu_check_current(settings: &Settings, adapters: &[gpu::GpuInfo]) -> bool {
+    let adapter = gpu::best(adapters).map_or("", |g| g.name.as_str());
+    settings.gpu_check.as_ref().is_some_and(|c| c.is_current(settings.engine.angle, adapter))
+}
+
 #[tauri::command]
 pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<Settings, String> {
     let mut d = state.data.lock().expect("state poisoned");
@@ -177,7 +186,7 @@ pub fn clear_notice(state: State<'_, AppState>) {
 /// Поэтому отчёт принимается только со страниц этой сессии, а новый адрес игры —
 /// только о самой странице и только если по нему действительно отвечает Foundry.
 #[tauri::command]
-pub async fn report_telemetry(webview: Webview, state: State<'_, AppState>, report: telemetry::Report) -> Result<(), String> {
+pub async fn report_telemetry(webview: Webview, state: State<'_, AppState>, report: telemetry::Report) -> Result<Option<Verdict>, String> {
     if !windows::is_game(webview.label()) || !telemetry::validate(&report) {
         return Err("rejected".into());
     }
@@ -195,15 +204,28 @@ pub async fn report_telemetry(webview: Webview, state: State<'_, AppState>, repo
     }
     let mut guard = state.data.lock().expect("state poisoned");
     let d = &mut *guard;
-    let Some(server_id) = d.current_server.clone() else { return Ok(()) };
+    let Some(server_id) = d.current_server.clone() else { return Ok(None) };
+    if let telemetry::Report::Gpu { renderer } = &report {
+        let persist = d.current_mode == LaunchMode::Normal;
+        let (verdict, fx) = telemetry::apply_gpu(renderer, &state.adapters, persist, !d.session_fallback_done, &mut d.settings);
+        d.session_fallback_done |= fx.fallback;
+        commit(&state, d, fx);
+        return Ok(Some(verdict));
+    }
     if matches!(report, telemetry::Report::WebglLost { early: true }) {
         if d.session_fallback_done {
-            return Ok(());
+            return Ok(None);
         }
         d.session_fallback_done = true;
     }
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|t| t.as_secs()).unwrap_or(0);
     let fx = telemetry::apply(&report, &server_id, now, &mut d.stats, &mut d.servers, &mut d.settings);
+    commit(&state, d, fx);
+    Ok(None)
+}
+
+/// Сохраняет то, что изменил отчёт агента.
+fn commit(state: &AppState, d: &mut Data, fx: telemetry::Effects) {
     if fx.stats {
         let _ = state.store.save_stats(&d.stats);
     }
@@ -216,7 +238,6 @@ pub async fn report_telemetry(webview: Webview, state: State<'_, AppState>, repo
     if fx.notice.is_some() {
         d.notice = fx.notice;
     }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -288,6 +309,17 @@ mod tests {
         assert_eq!(merged.gpu_check, Some(check));
         assert_eq!(merged.profile, ProfileId::Potato);
         assert_eq!(merged.schema, SCHEMA);
+    }
+
+    #[test]
+    fn gpu_check_is_current_only_for_the_same_backend_and_gpu() {
+        let rtx = gpu::GpuInfo { name: "RTX".into(), vram_mb: 12288, vendor_id: 0x10DE };
+        let check = GpuCheck { verdict: Verdict::Unknown, renderer: "r".into(), angle: AngleBackend::D3d11, adapter: "RTX".into() };
+        let s = Settings { gpu_check: Some(check), ..Settings::default() };
+        assert!(gpu_check_current(&s, std::slice::from_ref(&rtx)));
+        let switched = Settings { engine: EngineSettings { angle: AngleBackend::Gl, ..EngineSettings::default() }, ..s.clone() };
+        assert!(!gpu_check_current(&switched, std::slice::from_ref(&rtx)));
+        assert!(!gpu_check_current(&Settings::default(), &[rtx]));
     }
 }
 

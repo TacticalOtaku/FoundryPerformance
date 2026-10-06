@@ -1,5 +1,4 @@
 import { g } from "./foundry";
-import { rendererName } from "./gpu";
 import { collectVideos } from "./levers/video";
 
 export const AGENT_VERSION = "0.2.2";
@@ -9,6 +8,19 @@ function plain(v: unknown): unknown {
 		return JSON.parse(JSON.stringify(v));
 	} catch {
 		return String(v);
+	}
+}
+
+/** Имя рендерера WebGL для диагностики; undefined — нет контекста, расширения или строки. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rendererName(renderer: any): string | undefined {
+	try {
+		const gl = renderer?.gl;
+		const ext = gl?.getExtension("WEBGL_debug_renderer_info");
+		const name: unknown = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : undefined;
+		return typeof name === "string" && name ? name : undefined;
+	} catch {
+		return undefined;
 	}
 }
 

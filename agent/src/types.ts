@@ -30,10 +30,3 @@ export interface Boot {
 	/** Базовый замер: рычаги не применяются, core-настройки сбрасываются к умолчаниям Foundry. */
 	measureOnly: boolean;
 }
-
-/** Зеркало Rust `model::Verdict` — ответ лаунчера на отчёт `gpu`. */
-export type Verdict =
-	| { kind: "hardware"; backend: string | null }
-	| { kind: "software" }
-	| { kind: "wrongGpu"; backend: string | null }
-	| { kind: "unknown" };

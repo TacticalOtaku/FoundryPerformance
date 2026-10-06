@@ -5,8 +5,7 @@ export type Report =
 	| { kind: "bench"; avg: number; low1: number; min: number; profile: ProfileId }
 	| { kind: "profileChanged"; profile: ProfileId }
 	| { kind: "webglLost"; early: boolean }
-	| { kind: "foundryUrl"; url: string }
-	| { kind: "gpu"; renderer: string };
+	| { kind: "foundryUrl"; url: string };
 
 /**
  * Состояние канала к лаунчеру — для диагностики (F10).
@@ -51,11 +50,6 @@ function invoke(cmd: string, args: unknown = {}): Promise<unknown> {
 
 export function send(report: Report): void {
 	void invoke("report_telemetry", { report });
-}
-
-/** Отчёт с ответом лаунчера; null — канала нет или отчёт отклонён. */
-export function ask<T>(report: Report): Promise<T | null> {
-	return invoke("report_telemetry", { report }) as Promise<T | null>;
 }
 
 /** F11: окно, в котором нажали, уходит в полный экран без рамки и обратно. */

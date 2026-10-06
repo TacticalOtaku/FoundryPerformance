@@ -2,7 +2,6 @@ pub mod agent;
 pub mod cache;
 pub mod commands;
 pub mod engine_flags;
-pub mod gpu;
 pub mod installer;
 pub mod locale;
 pub mod model;
@@ -50,21 +49,18 @@ pub fn run() {
             app.manage(installer::commands::UpdateState::default());
             app.manage(windows::WindowMemory::new(store::Store::default_dir()));
             let store = store::Store::new(store::Store::default_dir());
-            let adapters = gpu::detect_all();
-            let (settings, n1) = store.load_settings(gpu::recommend(gpu::best(&adapters)));
+            let (settings, n1) = store.load_settings();
             let (servers, n2) = store.load_servers();
             let (stats, n3) = store.load_stats();
             let lang = locale::effective(settings.locale);
             app.manage(AppState {
                 store,
-                adapters,
                 data: Mutex::new(Data {
                     settings,
                     servers,
                     stats,
                     notice: n1.or(n2).or(n3),
                     current_server: None,
-                    current_mode: commands::LaunchMode::Normal,
                     session_fallback_done: false,
                     session_origins: Vec::new(),
                 }),
@@ -127,7 +123,6 @@ pub fn run() {
             commands::toggle_fullscreen,
             commands::cache_size,
             commands::clear_cache,
-            commands::classify_renderer,
             installer::commands::get_mode,
             installer::commands::pick_install_dir,
             installer::commands::check_install_dir,

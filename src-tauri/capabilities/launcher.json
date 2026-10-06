@@ -26,7 +26,6 @@
     "allow-check-update",
     "allow-apply-update",
     "allow-cache-size",
-    "allow-clear-cache",
-    "allow-classify-renderer"
+    "allow-clear-cache"
   ]
 }

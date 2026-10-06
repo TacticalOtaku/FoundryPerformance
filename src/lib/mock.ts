@@ -1,4 +1,4 @@
-import type { InstallProgress, InstallStep, Levers, ModeDto, ProfileId, Server, Settings, StateDto } from "./types";
+import type { InstallProgress, InstallStep, Levers, ModeDto, ProfileId, Server, Settings, StateDto, Verdict } from "./types";
 
 const progressListeners = new Set<(p: InstallProgress) => void>();
 let mockCache = 91_000_000;
@@ -60,13 +60,24 @@ const presets: Record<ProfileId, Levers> = {
 	potato: lv({ perfMode: 0, maxFps: 45, resMin: 0.55, resMax: 0.85, lightAnimation: false, mipmap: false, video: "static", sequencer: false, fxmaster: false, unfocusedFps: 10, prime: "aggressive" })
 };
 
+/** Превью статуса ускорения: `?accel=on|software|wrongGpu|unknown|stale|none`. */
+const accelParam = new URLSearchParams(location.search).get("accel") ?? "on";
+const ACCEL: Record<string, Verdict> = {
+	on: { kind: "hardware", backend: "d3d11" },
+	software: { kind: "software" },
+	wrongGpu: { kind: "wrongGpu", backend: "d3d11" },
+	unknown: { kind: "unknown" },
+	stale: { kind: "hardware", backend: "gl" }
+};
+
 let settings: Settings = {
 	schema: 1,
 	profile: "balance",
 	overrides: {},
 	engine: { angle: "d3d11", diskCacheMb: 2048, extraArgs: "" },
 	locale: "auto",
-	theme: "auto"
+	theme: "auto",
+	gpuCheck: ACCEL[accelParam] ? { verdict: ACCEL[accelParam], renderer: "ANGLE (NVIDIA, …)", angle: "d3d11", adapter: "NVIDIA GeForce GTX 1060 6GB" } : null
 };
 
 let servers: Server[] = [
@@ -87,6 +98,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 				stats: { a1: { lastSession: { avg: 52.4, low1: 31, profile: "balance", at: 0 }, lastBench: null, history: [38, 44, 41, 55, 49, 58, 52] } },
 				presets,
 				gpu: { name: "NVIDIA GeForce GTX 1060 6GB", vramMb: 6144, vendorId: 0x10de },
+				gpuCheckCurrent: accelParam !== "stale",
 				recommended: "balance",
 				notice: null,
 				locale: "ru",

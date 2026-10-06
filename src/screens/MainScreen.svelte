@@ -1,8 +1,10 @@
 <script lang="ts">
 	import Knob from "../components/Knob.svelte";
+	import Led from "../components/Led.svelte";
 	import LaunchButton from "../components/LaunchButton.svelte";
 	import Lcd from "../components/Lcd.svelte";
 	import Slot from "../components/Slot.svelte";
+	import { accelView } from "../lib/accel";
 	import { noteLines } from "../lib/changelog";
 	import { t } from "../lib/i18n.svelte";
 	import { knobPosition } from "../lib/levers";
@@ -17,6 +19,7 @@
 	const lcdCaption = $derived(stats?.lastBench ? t("main.lastBench") : stats?.lastSession ? t("main.lastSession") : t("main.noData"));
 	// «NVIDIA GeForce RTX 5070» → «RTX 5070»: марка на табличке не нужна
 	const gpuName = $derived(dto.gpu?.name.replace(/^(NVIDIA|AMD|Intel\(R\))\s+(GeForce\s+|Radeon\s+(?=RX))?/i, "") ?? "");
+	const accel = $derived(accelView(dto.settings, dto.gpuCheckCurrent));
 	const code = (i: number) => `A${i + 1}`;
 </script>
 
@@ -79,7 +82,11 @@
 				<dt>VRAM</dt>
 				<dd>{Math.round(dto.gpu.vramMb / 1024)} {t("unit.gb")}</dd>
 				<dt>API</dt>
-				<dd>{dto.settings.engine.angle.toUpperCase()}</dd>
+				<dd>{accel.api.toUpperCase()}</dd>
+				<dt>{t("accel.label")}</dt>
+				<dd class="accel" {@attach tip(() => ({ title: t(`accel.${accel.state}`), body: t(`accel.tip.${accel.state}`) }))}>
+					<Led state={accel.led} label="" />{t(`accel.${accel.state}`)}
+				</dd>
 			</dl>
 		{:else}
 			<div class="passport mono">{t("gpu.unknown")}</div>
@@ -259,6 +266,14 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+	/* ореол лампочки шире строки — не обрезаем; статусы короткие, многоточие не нужно */
+	.passport .accel {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 8px;
+		overflow: visible;
 	}
 	.tune {
 		padding: 10px;

@@ -139,10 +139,15 @@ pub fn delete_server(state: State<'_, AppState>, id: String) -> Result<Vec<Serve
     Ok(d.servers.clone())
 }
 
+/// Вердикт проверки ускорения пишет только лаунчер: копия настроек в интерфейсе может быть старше.
+pub fn merge_settings(stored: &Settings, incoming: Settings) -> Settings {
+    Settings { schema: SCHEMA, gpu_check: stored.gpu_check.clone(), ..incoming }
+}
+
 #[tauri::command]
 pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<Settings, String> {
     let mut d = state.data.lock().expect("state poisoned");
-    d.settings = Settings { schema: SCHEMA, ..settings };
+    d.settings = merge_settings(&d.settings, settings);
     state.store.save_settings(&d.settings).map_err(|_| "err.saveFailed".to_string())?;
     Ok(d.settings.clone())
 }
@@ -271,6 +276,18 @@ mod tests {
         assert_eq!(a(&["--safe", "--open", "vtt.x"]), Some(("vtt.x".to_string(), LaunchMode::Safe)));
         assert_eq!(a(&["--open", "vtt.x", "--baseline"]), Some(("vtt.x".to_string(), LaunchMode::Baseline)));
         assert_eq!(a(&[]), None);
+    }
+
+    #[test]
+    fn saving_settings_keeps_the_launchers_gpu_check() {
+        let check = GpuCheck { verdict: Verdict::Software, renderer: "r".into(), angle: AngleBackend::D3d11, adapter: "RTX".into() };
+        let stored = Settings { gpu_check: Some(check.clone()), ..Settings::default() };
+        // интерфейс прислал старую копию без проверки и с другим профилем
+        let incoming = Settings { profile: ProfileId::Potato, schema: 0, gpu_check: None, ..Settings::default() };
+        let merged = merge_settings(&stored, incoming);
+        assert_eq!(merged.gpu_check, Some(check));
+        assert_eq!(merged.profile, ProfileId::Potato);
+        assert_eq!(merged.schema, SCHEMA);
     }
 }
 

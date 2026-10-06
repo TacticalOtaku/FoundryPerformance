@@ -46,9 +46,11 @@ pub fn validate(r: &Report) -> bool {
 pub fn session_origins(server: &Server) -> Vec<url::Origin> {
     let mut out: Vec<url::Origin> = Vec::new();
     for u in [Some(server.url.as_str()), server.game_url.as_deref()].into_iter().flatten() {
-        if let Ok(u) = crate::probe::normalize_url(u) {
-            if !out.contains(&u.origin()) {
-                out.push(u.origin());
+        let Ok(u) = crate::probe::normalize_url(u) else { continue };
+        // Страница игры хостинга доверенная сразу — проба её /api/status может быть закрыта
+        for o in [Some(u.origin()), crate::probe::hosted_foundry(&u).map(|h| h.origin())].into_iter().flatten() {
+            if !out.contains(&o) {
+                out.push(o);
             }
         }
     }
@@ -242,7 +244,7 @@ mod tests {
         s.url = "https://www.sqyre.app/games/x/".into();
         s.game_url = Some("https://x.sqyre.app/".into());
         let origins = session_origins(&s);
-        assert_eq!(origins.len(), 2);
+        assert_eq!(origins.len(), 3); // + выведенный хост Sqyre
         assert!(page_trusted(&"https://x.sqyre.app/game".parse().unwrap(), &origins));
         assert!(page_trusted(&"https://www.sqyre.app/games/x/".parse().unwrap(), &origins));
         assert!(!page_trusted(&"https://evil.example/x".parse().unwrap(), &origins));
@@ -298,6 +300,14 @@ mod tests {
         assert_eq!(v, Verdict::Software);
         assert_eq!(fx, Effects::default());
         assert_eq!(settings, Settings::default());
+    }
+
+    #[test]
+    fn sqyre_game_host_is_trusted_from_launch() {
+        let s = Server { url: "https://www.sqyre.app/games/aldarionv210-3c11b9b6/".into(), ..srv("a") };
+        let origins = session_origins(&s);
+        assert!(page_trusted(&"https://aldarionv210-3c11b9b6.games.sqyre.app/game".parse().unwrap(), &origins));
+        assert!(!page_trusted(&"https://other.games.sqyre.app/game".parse().unwrap(), &origins));
     }
 
     #[test]

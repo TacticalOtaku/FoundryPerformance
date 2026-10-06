@@ -9,7 +9,7 @@ export const CORE_KEYS = {
 	mipmap: "core.mipmap"
 } as const;
 
-export const FOUNDRY_MAX_FPS = 60;
+const FOUNDRY_MAX_FPS = 60;
 
 export function coreValues(l: Levers): Record<string, unknown> {
 	return {

@@ -4,7 +4,7 @@ import { baseFor, countOverrides, type KnobPosition, overridesFor, type Scope, w
 import { probeUrl } from "./status";
 import type { Levers, Overrides, ProbeResult, ProfileId, Server, Settings, StateDto, UpdateInfo } from "./types";
 
-export type Screen = "main" | "tuning" | "slot";
+type Screen = "main" | "tuning" | "slot";
 
 const snap = <T>(v: T): T => $state.snapshot(v) as T;
 
@@ -28,7 +28,7 @@ function takeSavedOverrides(id: string): Overrides | null {
 }
 const systemLocale = (): "ru" | "en" => (navigator.language.toLowerCase().startsWith("ru") ? "ru" : "en");
 
-export type UpdateCheck = "idle" | "checking" | "current" | "available" | "failed";
+type UpdateCheck = "idle" | "checking" | "current" | "available" | "failed";
 const UPDATE_EVERY_MS = 30 * 60_000;
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

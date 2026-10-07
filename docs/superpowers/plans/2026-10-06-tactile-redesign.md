@@ -1,5 +1,7 @@
 # Редизайн лаунчера на Tactile — план реализации
 
+> **Заменено** `2026-10-07-intent-redesign-design.md` (дизайн «Намерение», значок видеокарты в духе FLC). Документ оставлен для истории.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Перевести лаунчер Foundry Performance с ретро-пульта на Tactile «Монитор под стеклом»:

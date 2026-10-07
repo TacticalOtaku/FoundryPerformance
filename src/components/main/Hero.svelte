@@ -45,6 +45,7 @@
 			<h1 class="name">{sel.name}</h1>
 			<p class="meta">
 				<span>{hostOf(sel.url)}</span>
+				<span aria-hidden="true">·</span>
 				{#if run}
 					<span>{t(run.kind === "bench" ? "main.lastBench" : "main.lastSession")} <b>{run.fps}</b> FPS</span>
 				{:else}
@@ -99,7 +100,7 @@
 	.meta {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 4px 14px;
+		gap: 4px 8px;
 		margin-top: 14px;
 		font: 500 12.5px/1.4 var(--tc-font-mono);
 		color: var(--tc-muted);

@@ -70,17 +70,23 @@ export const openWindow: Action<HTMLElement> = (root) => {
 /** Нажатие: кнопка уходит на 1 px и 0.96, отпускание возвращает её с осадкой. Клик не ждёт анимацию. */
 export const press: Action<HTMLElement> = (el) => {
 	let anim: Animation | undefined;
+	let held = false;
 	const pressed = "translateY(1px) scale(0.96)";
 	const down = () => {
 		if (reduceMotion() || ("disabled" in el && el.disabled)) return;
 		anim?.cancel();
 		anim = el.animate([{ transform: "none" }, { transform: pressed }], { duration: 120, easing: "ease-out", fill: "forwards" });
+		held = true;
 	};
 	const up = () => {
-		if (!anim) return;
-		anim.cancel();
-		anim = el.animate([{ transform: pressed }, { transform: "none" }], { duration: 450, easing: SETTLE });
-		anim.onfinish = () => (anim = undefined);
+		if (!held) return;
+		held = false;
+		anim?.cancel();
+		const release = el.animate([{ transform: pressed }, { transform: "none" }], { duration: 450, easing: SETTLE });
+		anim = release;
+		release.onfinish = () => {
+			if (anim === release) anim = undefined;
+		};
 	};
 	el.addEventListener("pointerdown", down);
 	for (const e of ["pointerup", "pointerleave", "pointercancel"]) el.addEventListener(e, up);

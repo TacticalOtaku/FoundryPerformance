@@ -9,7 +9,7 @@
 	let { label, children, size = 28, on = false, danger = false, tip, ...rest }: Props = $props();
 </script>
 
-<button type="button" class="ib" class:on class:danger style:--s={`${size}px`} aria-label={label} use:press {@attach tooltip(() => tip)} {...rest}>
+<button type="button" class="ib" class:on class:danger style:--s={`${size}px`} aria-label={label} aria-pressed={on ? true : undefined} use:press {@attach tooltip(() => tip)} {...rest}>
 	{@render children()}
 </button>
 

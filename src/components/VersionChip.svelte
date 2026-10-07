@@ -22,7 +22,7 @@
 <!-- версия — кнопка ручной проверки обновлений; в подсказке — что нового в этой версии -->
 <Chip
 	button
-	aria-label={t("update.check")}
+	aria-label={`v${version} — ${t("update.check")}`}
 	aria-busy={check === "checking"}
 	onclick={() => app.checkUpdate(true)}
 	tip={{ title: t("version.notesTitle", { version }), body: notes ? t("update.checkHint") : `${t("version.noNotes")} ${t("update.checkHint")}`, lines: notes ?? undefined }}

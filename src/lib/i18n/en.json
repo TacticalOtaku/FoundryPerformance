@@ -148,7 +148,6 @@
   "install.step.copy": "Copying",
   "install.step.shortcuts": "Shortcuts",
   "install.step.register": "Registering",
-  "install.step.done": "Done",
   "install.err.notAbsolute": "Enter a full path, for example D:\\Games\\FoundryPerformance",
   "install.err.root": "Don't install to a drive root — pick a folder",
   "install.err.system": "That's a Windows system folder — pick another one",

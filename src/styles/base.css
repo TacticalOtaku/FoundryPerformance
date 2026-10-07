@@ -1,77 +1,54 @@
-*,
-*::before,
-*::after {
+/* Основа лаунчера поверх токенов Tactile (tactile/tokens.css).
+   Сбросы — только через :where(): у них нулевая специфичность, классы компонентов всегда побеждают. */
+html,
+body,
+#app {
+	height: 100%;
+	margin: 0;
+}
+body {
+	overflow: hidden;
+	-webkit-font-smoothing: antialiased;
+}
+:where(*, *::before, *::after) {
 	box-sizing: border-box;
 }
-
-html,
-body {
-	margin: 0;
-	height: 100%;
-	overflow: hidden;
-	background: var(--grain), var(--panel);
-	color: var(--ink);
-	font: 400 13px/1.4 var(--font-ui);
-	-webkit-font-smoothing: antialiased;
-	user-select: none;
-}
-
-button {
+:where(button, input, select, textarea) {
 	font: inherit;
 	color: inherit;
+	margin: 0;
+}
+:where(button) {
 	background: none;
 	border: 0;
 	padding: 0;
 	cursor: pointer;
 }
-
-input {
-	font: inherit;
-	color: inherit;
-	user-select: text;
+:where(h1, h2, h3, p, ol, ul, dl, dd) {
+	margin: 0;
+	padding: 0;
 }
-
-:focus-visible {
-	outline: 2px solid var(--signal);
+.tc-root {
+	height: 100%;
+	background: var(--tc-bg);
+	color: var(--tc-ink);
+	font: 400 14px/1.45 var(--tc-font-ui);
+	font-variant-numeric: tabular-nums;
+}
+.tc-root :focus-visible {
+	outline: 2px solid var(--tc-accent);
 	outline-offset: 2px;
 }
-
-.mono {
-	font-family: var(--font-mono);
-	font-size: 11px;
-	letter-spacing: 0.02em;
+.tc-root ::selection {
+	background: var(--tc-accent-soft);
 }
-
-/* Надписи панели — как шелкография на корпусе прибора */
-.silk {
-	font: 600 11px/1.2 var(--font-ui);
-	letter-spacing: 0.1em;
-	text-transform: uppercase;
-	color: var(--ink-2);
-	text-shadow: var(--engrave);
+/* смена темы: два кадра без переходов, чтобы все токены легли разом */
+.fp-no-transitions,
+.fp-no-transitions * {
+	transition: none !important;
 }
-
-/* Лицевая пластина: шлифовка + фаска */
-.plate {
-	background: var(--grain), var(--face);
-	box-shadow: var(--bevel);
-}
-
-.dot {
-	display: inline-block;
-	width: 6px;
-	height: 6px;
-	margin-left: 6px;
-	border-radius: 50%;
-	background: var(--signal);
-	vertical-align: middle;
-}
-
 @media (prefers-reduced-motion: reduce) {
-	*,
-	*::before,
-	*::after {
-		transition: none !important;
-		animation: none !important;
+	.tc-root * {
+		transition-duration: 0.01ms !important;
 	}
 }

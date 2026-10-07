@@ -7,7 +7,6 @@ export type AngleBackend = "d3d11" | "d3d11on12" | "gl" | "vulkan";
 export type LocalePref = "auto" | "ru" | "en";
 export type ThemePref = "auto" | "day" | "night";
 export type AccentId = "peach" | "amber" | "sage" | "mint" | "azure" | "periwinkle" | "lavender" | "orchid" | "rose" | "steel";
-export type LedState = "ok" | "warn" | "err" | "off" | "pending";
 
 interface EngineSettings {
 	angle: AngleBackend;

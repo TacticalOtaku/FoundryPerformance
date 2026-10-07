@@ -7,6 +7,7 @@ use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, Webv
 
 pub const LAUNCHER: &str = "main";
 pub const GAME: &str = "game";
+pub const SPLASH: &str = "splash";
 
 static CHILD_SEQ: AtomicU32 = AtomicU32::new(1);
 
@@ -175,6 +176,26 @@ pub fn open_launcher(app: &AppHandle) -> tauri::Result<()> {
         .build()?;
     let placement = memory(app).and_then(|m| m.placement(Role::Launcher, &window));
     place_and_show(&window, placement, false)
+}
+
+/// Сплэш обновления: маленькое окно без рамки, в панели задач — экран ошибки ждёт клика
+/// и не должен теряться под другими окнами. Положение не запоминается.
+pub fn open_splash(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(w) = app.get_webview_window(SPLASH) {
+        w.show()?;
+        return w.set_focus();
+    }
+    let window = WebviewWindowBuilder::new(app, SPLASH, WebviewUrl::App("index.html".into()))
+        .title("Foundry Performance")
+        .inner_size(300.0, 340.0)
+        .resizable(false)
+        .maximizable(false)
+        .decorations(false)
+        .center()
+        .visible(false)
+        .build()?;
+    window.show()?;
+    window.set_focus()
 }
 
 #[derive(Debug)]

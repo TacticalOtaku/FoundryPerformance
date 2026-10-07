@@ -7,6 +7,7 @@ pub mod locale;
 pub mod model;
 pub mod probe;
 pub mod profile;
+pub mod splash;
 pub mod state;
 pub mod store;
 pub mod telemetry;
@@ -71,13 +72,20 @@ pub fn run() {
                 return Ok(());
             }
             tray::create(app.handle(), lang)?;
-            match commands::parse_cli(args.clone().into_iter()) {
-                Some((url, launch_mode)) => commands::launch_adhoc(app.handle(), &app.state::<AppState>(), &url, launch_mode)?,
-                None => windows::open_launcher(app.handle())?,
-            }
+            // Сначала сплэш обновления; лаунчер или игру по адресу он откроет сам
+            app.manage(splash::SplashState::new(&args));
+            windows::open_splash(app.handle())?;
             Ok(())
         })
         .on_window_event(|window, event| match (window.label(), event) {
+            // Alt+F4 на сплэше — выход, как у лаунчера, но не посреди замены exe
+            (windows::SPLASH, WindowEvent::CloseRequested { api, .. }) => {
+                if window.try_state::<installer::commands::UpdateState>().is_some_and(|s| s.applying()) {
+                    api.prevent_close();
+                } else {
+                    window.app_handle().exit(0)
+                }
+            }
             (_, WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
                 if let Some(m) = window.try_state::<windows::WindowMemory>() {
                     m.track(window);
@@ -131,7 +139,10 @@ pub fn run() {
             installer::commands::uninstall,
             installer::commands::check_update,
             installer::commands::apply_update,
-            installer::commands::cancel_update
+            installer::commands::cancel_update,
+            splash::splash_flags,
+            splash::splash_done,
+            splash::restart_to_update
         ])
         .build(tauri::generate_context!())
         .expect("error while building Foundry Performance");

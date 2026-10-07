@@ -1,8 +1,15 @@
 <script lang="ts">
-	import Lcd from "../components/Lcd.svelte";
-	import Toggle from "../components/Toggle.svelte";
+	import Band from "../components/tactile/Band.svelte";
+	import Button from "../components/tactile/Button.svelte";
+	import Field from "../components/tactile/Field.svelte";
+	import Icon from "../components/tactile/Icon.svelte";
+	import Primary from "../components/tactile/Primary.svelte";
+	import Shell from "../components/tactile/Shell.svelte";
+	import Toggle from "../components/tactile/Toggle.svelte";
+	import Tray from "../components/tactile/Tray.svelte";
 	import { setupApi } from "../lib/api";
 	import { t } from "../lib/i18n.svelte";
+	import { openWindow } from "../lib/motion";
 	import type { InstallInfo, InstallStep } from "../lib/types";
 
 	let { info }: { info: InstallInfo } = $props();
@@ -19,11 +26,12 @@
 	let pct = $state(0);
 	let error = $state<string | null>(null);
 
-
-	// Ручка «доворачивается» по мере установки: от КАЧ (−60°) до КРТ (+60°)
-	const angle = $derived(-60 + (120 * pct) / 100);
 	const title = $derived(
-		info.state === "upgrade" ? t("install.titleUpgrade") : info.state === "current" ? t("install.titleCurrent") : t("install.title")
+		info.state === "upgrade"
+			? t("install.titleUpgrade", { version: info.currentVersion })
+			: info.state === "current"
+				? t("install.titleCurrent")
+				: t("install.title")
 	);
 	const lead = $derived(
 		info.state === "current" ? t("install.leadCurrent", { version: info.existingVersion ?? "", dir: info.existingDir ?? "" }) : t("install.lead")
@@ -90,240 +98,163 @@
 	}
 </script>
 
-<div class="install">
-	<section class="left">
-		<header>
-			<h1>{title}</h1>
-			<p>{lead}</p>
-		</header>
+<div class="install" use:openWindow>
+	<Shell fill pad="26px 28px 24px">
+		<div class="cols">
+			<section class="left" data-part>
+				<h1>{title}</h1>
+				<p class="lead">{lead}</p>
 
-		{#if phase === "done"}
-			<div class="done">
-				<p>{t("install.done")}</p>
-				{#if !launch}
-					<button class="go" onclick={() => setupApi.openInstalled()}>
-						<span>{t("install.openInstalled")}</span><span aria-hidden="true">▶</span>
-					</button>
-				{/if}
-			</div>
-		{:else}
-			<label class="field">
-				<span class="mono">{t("install.dir")}</span>
-				<span class="row">
-					<input
-						class="mono"
-						bind:value={dir}
-						spellcheck="false"
-						disabled={phase === "running"}
-						aria-invalid={Boolean(dirError)}
-						onchange={validate}
-					/>
-					<button class="browse mono" onclick={browse} disabled={phase === "running"}>{t("install.browse")}</button>
-				</span>
-				{#if dirError}
-					<span class="err mono" role="alert">{dirError}</span>
+				{#if phase === "done"}
+					<p class="done" role="status">{t("install.done")}</p>
+					<div class="grow"></div>
+					{#if !launch}<Primary size="lg" onclick={() => setupApi.openInstalled()}>{t("install.openInstalled")}</Primary>{/if}
 				{:else}
-					<span class="hint mono">{t("install.dirHint")}</span>
+					<div class="form">
+						<Field
+							label={t("install.dir")}
+							mono
+							bind:value={dir}
+							spellcheck={false}
+							disabled={phase === "running"}
+							error={dirError}
+							hint={t("install.dirHint")}
+							onchange={validate}
+						>
+							{#snippet end()}
+								<Button disabled={phase === "running"} onclick={browse}><Icon name="folder" size={14} />{t("install.browse")}</Button>
+							{/snippet}
+						</Field>
+						<div>
+							<Toggle label={t("install.desktop")} checked={desktop} disabled={phase === "running"} onchange={(v) => (desktop = v)} />
+							<Toggle label={t("install.launch")} checked={launch} disabled={phase === "running"} onchange={(v) => (launch = v)} />
+						</div>
+						{#if error}<p class="err" role="alert">{error}</p>{/if}
+					</div>
+					<div class="grow"></div>
+					{#if info.state === "current" && phase !== "running"}
+						<div class="pair">
+							<Button onclick={run}>{goLabel}</Button>
+							<Primary size="lg" onclick={() => setupApi.openInstalled()}>{t("install.openInstalled")}</Primary>
+						</div>
+					{:else}
+						<Primary size="lg" busy={phase === "running"} onclick={run}>{phase === "error" ? t("install.retry") : goLabel}</Primary>
+					{/if}
 				{/if}
-			</label>
+			</section>
 
-			<div class="toggles">
-				<Toggle label={t("install.desktop")} checked={desktop} onchange={(v) => (desktop = v)} />
-				<Toggle label={t("install.launch")} checked={launch} onchange={(v) => (launch = v)} />
-			</div>
-
-			{#if error}<div class="err mono" role="alert">{error}</div>{/if}
-
-			<div class="actions">
-				{#if info.state === "current" && phase !== "running"}
-					<button class="go" onclick={() => setupApi.openInstalled()}>
-						<span>{t("install.openInstalled")}</span><span aria-hidden="true">▶</span>
-					</button>
-					<button class="secondary mono" onclick={run}>{goLabel}</button>
-				{:else}
-					<button class="go" aria-busy={phase === "running"} onclick={run}>
-						<span>{goLabel}</span><span aria-hidden="true">▶</span>
-					</button>
-				{/if}
-			</div>
-		{/if}
-	</section>
-
-	<aside class="right">
-		<Lcd value={pct} unit="%" caption={step ? t(`install.step.${step}`) : `v${info.currentVersion}`} />
-		<div class="knob" aria-hidden="true">
-			<div class="cap" style:transform={`rotate(${angle}deg)`}><i></i></div>
+			<aside class="right" data-part>
+				<Tray pad="10px 12px">
+					<ol class="steps">
+						{#each STEPS as s (s)}
+							{@const st = stepState(s)}
+							<li class={st}>
+								<span class="dot" aria-hidden="true"></span>
+								<span>{t(`install.step.${s}`)}</span>
+							</li>
+						{/each}
+					</ol>
+				</Tray>
+				<Band value={pct / 100} label={t("install.progress")} />
+				<span class="pct">{pct} %</span>
+			</aside>
 		</div>
-		<ol class="steps mono">
-			{#each STEPS as s (s)}
-				<li class={stepState(s)}>
-					<span aria-hidden="true">{{ done: "✓", now: "●", fail: "✕", todo: "○" }[stepState(s)]}</span>
-					{t(`install.step.${s}`)}
-				</li>
-			{/each}
-		</ol>
-	</aside>
+	</Shell>
 </div>
 
 <style>
 	.install {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) 232px;
-		gap: 2px;
 		height: 100%;
-		min-height: 0;
+		padding: 2px 14px 14px;
 	}
-	.left,
-	.right {
-		background: var(--grain), var(--face);
-		box-shadow: var(--bevel);
-		padding: 22px;
-		min-height: 0;
+	.cols {
+		height: 100%;
+		display: grid;
+		grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+		gap: 28px;
 	}
 	.left {
-		display: grid;
-		align-content: start;
-		gap: 20px;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
 	}
 	h1 {
-		margin: 0;
-		font-weight: 800;
-		font-size: 30px;
-		line-height: 1.05;
-		letter-spacing: -0.01em;
+		font: 700 28px/1.1 var(--tc-font-display);
+		letter-spacing: -0.03em;
+		text-wrap: balance;
 	}
-	header p {
-		margin: 8px 0 0;
-		color: var(--ink-2);
-		font-size: 14px;
-		max-width: 460px;
-		overflow-wrap: anywhere;
+	.lead {
+		margin-top: 10px;
+		color: var(--tc-muted);
 	}
-	.field {
+	.form {
 		display: grid;
-		gap: 6px;
+		gap: 16px;
+		margin-top: 24px;
 	}
-	.row {
-		display: flex;
-		gap: 6px;
-	}
-	input {
-		flex: 1;
-		min-width: 0;
-		height: 38px;
-		padding: 0 10px;
-		background: var(--well);
-		border: 1px solid transparent;
-		box-shadow: var(--recess);
-	}
-	input[aria-invalid="true"] {
-		border-color: var(--led-err);
-	}
-	.browse,
-	.secondary {
-		padding: 0 14px;
-		border: 1px solid var(--ink-3);
-	}
-	.browse:hover,
-	.secondary:hover {
-		border-color: var(--signal);
-	}
-	.secondary {
-		height: 52px;
-	}
-	.hint {
-		color: var(--ink-2);
+	.done {
+		margin-top: 24px;
+		font-weight: 600;
+		color: var(--tc-good);
 	}
 	.err {
-		color: var(--led-err);
+		font: 500 12px/1.4 var(--tc-font-mono);
+		color: var(--tc-danger);
 	}
-	.toggles {
-		display: grid;
-		gap: 8px;
-		max-width: 360px;
-	}
-	.actions {
-		display: flex;
-		gap: 8px;
-		align-items: stretch;
-	}
-	.go {
+	.grow {
 		flex: 1;
+		min-height: 16px;
+	}
+	.pair {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		padding: 15px 18px;
-		background: var(--signal);
-		color: var(--signal-ink);
-		font-weight: 800;
-		font-size: 20px;
-		letter-spacing: 0.06em;
-		box-shadow: 0 3px 0 var(--signal-deep);
-		transition:
-			transform 0.06s,
-			box-shadow 0.06s;
-	}
-	.go:active {
-		transform: translateY(3px);
-		box-shadow: 0 0 0 var(--signal-deep);
-	}
-	.go[aria-busy="true"] {
-		cursor: progress;
-	}
-	.done p {
-		margin: 0 0 16px;
-		font-size: 16px;
+		gap: 10px;
 	}
 	.right {
-		display: grid;
-		align-content: start;
-		justify-items: center;
-		gap: 18px;
-	}
-	.right :global(.lcd) {
-		width: 100%;
-	}
-	.knob {
-		width: 116px;
-		height: 116px;
-		border-radius: 50%;
-		background: var(--line);
-		display: grid;
-		place-items: center;
-	}
-	.cap {
-		position: relative;
-		width: 88px;
-		height: 88px;
-		border-radius: 50%;
-		background: var(--inverse-bg);
-		transition: transform 0.45s var(--ease-detent);
-	}
-	.cap i {
-		position: absolute;
-		left: 50%;
-		top: 8px;
-		width: 5px;
-		height: 28px;
-		margin-left: -2.5px;
-		background: var(--signal);
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 12px;
 	}
 	.steps {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		width: 100%;
 		display: grid;
-		gap: 6px;
-		color: var(--ink-3);
+		gap: 10px;
+		list-style: none;
+		font: 500 12px/1.3 var(--tc-font-mono);
+		color: var(--tc-muted);
 	}
-	.steps .done {
-		color: var(--ink);
+	.steps li {
+		display: flex;
+		align-items: center;
+		gap: 10px;
 	}
-	.steps .now {
-		color: var(--signal-text);
+	.dot {
+		width: 8px;
+		height: 8px;
+		flex: none;
+		border-radius: 99px;
+		box-shadow: inset 0 0 0 1.5px var(--tc-muted);
 	}
-	.steps .fail {
-		color: var(--led-err);
+	.now {
+		color: var(--tc-ink);
+	}
+	.now .dot {
+		background: var(--tc-accent);
+		box-shadow: 0 0 8px var(--tc-glow);
+	}
+	.done .dot {
+		background: var(--tc-good);
+		box-shadow: none;
+	}
+	.fail {
+		color: var(--tc-danger);
+	}
+	.fail .dot {
+		background: var(--tc-danger);
+		box-shadow: none;
+	}
+	.pct {
+		align-self: flex-end;
+		font: 600 12.5px/1 var(--tc-font-mono);
 	}
 </style>

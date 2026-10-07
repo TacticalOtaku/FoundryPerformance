@@ -42,6 +42,8 @@ export interface TipData {
 	body: string;
 	/** Пункты списка под текстом — например, изменения версии. */
 	lines?: string[];
+	/** Проверки с точкой статуса: зелёная — да, красная — нет (значок видеокарты). */
+	checks?: { ok: boolean; text: string }[];
 	fps?: number;
 	look?: number;
 }

@@ -142,7 +142,7 @@ pub async fn check_update(state: State<'_, UpdateState>) -> Result<Option<Update
         return Ok(None);
     }
     // Ошибку отдаём наверх: ручная проверка должна отличать «нет связи» от «обновлений нет»
-    let m = super::update::fetch_manifest().await?;
+    let m = super::update::fetch_manifest(8).await?;
     if !super::update::is_newer(version::current(), &m) {
         return Ok(None);
     }
@@ -154,7 +154,7 @@ pub async fn check_update(state: State<'_, UpdateState>) -> Result<Option<Update
 #[tauri::command]
 pub async fn apply_update(app: AppHandle, state: State<'_, UpdateState>) -> Result<(), String> {
     let m = state.0.lock().expect("update state poisoned").clone().ok_or_else(|| "update.err.download".to_string())?;
-    let bytes = super::update::download(&m.url, |pct| {
+    let bytes = super::update::download(&m.url, &std::sync::atomic::AtomicBool::new(false), |pct| {
         let _ = app.emit("update-progress", pct);
     })
     .await?;

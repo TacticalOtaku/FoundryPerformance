@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 pub const FEED_URL: &str = "https://github.com/TacticalOtaku/FoundryPerformance/releases/latest/download/latest.json";
@@ -16,6 +17,32 @@ pub const FEED_URL: &str = "https://github.com/TacticalOtaku/FoundryPerformance/
 pub const RELEASES_PREFIX: &str = "https://github.com/TacticalOtaku/FoundryPerformance/releases/download/";
 /// Публичный ключ `tauri signer` (base64 текста .pub). Закрытый — только в секретах GitHub.
 pub const PUBLIC_KEY: &str = include_str!("../../update.pub");
+
+/// Локальная лента для сквозной проверки обновления — только в debug:
+/// `FP_UPDATE_FEED=http://127.0.0.1:8000/latest.json`. Возвращает адрес ленты и разрешённый
+/// префикс загрузки (каталог ленты). В release `dev = false`, и переменная не читается.
+fn local_feed(dev: bool, env: Option<&str>) -> Option<(String, String)> {
+    let feed = env.filter(|_| dev)?.trim();
+    let dir = &feed[..feed.rfind('/')? + 1];
+    Some((feed.to_string(), dir.to_string()))
+}
+
+fn local_feed_env() -> Option<(String, String)> {
+    local_feed(cfg!(debug_assertions), std::env::var("FP_UPDATE_FEED").ok().as_deref())
+}
+
+/// В `tauri dev` GitHub не дёргаем на каждый перезапуск — кроме локальной ленты.
+pub fn checks_enabled() -> bool {
+    !cfg!(debug_assertions) || local_feed_env().is_some()
+}
+
+fn feed_url() -> String {
+    local_feed_env().map_or_else(|| FEED_URL.to_string(), |(feed, _)| feed)
+}
+
+fn releases_prefix() -> String {
+    local_feed_env().map_or_else(|| RELEASES_PREFIX.to_string(), |(_, prefix)| prefix)
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Manifest {
@@ -43,7 +70,7 @@ fn decode_text(b64: &str) -> Option<String> {
 
 /// Все проверки перед заменой exe; ошибка — i18n-ключ.
 pub fn verify(bytes: &[u8], m: &Manifest, public_key_b64: &str) -> Result<(), &'static str> {
-    if !m.url.starts_with(RELEASES_PREFIX) {
+    if !m.url.starts_with(releases_prefix().as_str()) {
         return Err("update.err.source");
     }
     if !sha256_hex(bytes).eq_ignore_ascii_case(m.sha256.trim()) {
@@ -69,19 +96,23 @@ fn client(timeout_s: u64) -> Option<reqwest::Client> {
 }
 
 /// Лента последнего релиза; ошибка — i18n-ключ (нет сети, нет релизов, битый JSON).
-pub async fn fetch_manifest() -> Result<Manifest, &'static str> {
+pub async fn fetch_manifest(timeout_s: u64) -> Result<Manifest, &'static str> {
     let fail = |_| "update.err.check";
-    let resp = client(8).ok_or("update.err.check")?.get(FEED_URL).send().await.map_err(fail)?.error_for_status().map_err(fail)?;
+    let resp = client(timeout_s).ok_or("update.err.check")?.get(feed_url()).send().await.map_err(fail)?.error_for_status().map_err(fail)?;
     resp.json::<Manifest>().await.map_err(fail)
 }
 
-pub async fn download(url: &str, progress: impl Fn(u8)) -> Result<Vec<u8>, &'static str> {
+pub async fn download(url: &str, cancelled: &AtomicBool, progress: impl Fn(u8)) -> Result<Vec<u8>, &'static str> {
     let fail = |_| "update.err.download";
     let mut resp = client(180).ok_or("update.err.download")?.get(url).send().await.map_err(fail)?.error_for_status().map_err(fail)?;
     let total = resp.content_length().unwrap_or(0);
     let mut buf = Vec::with_capacity(total as usize);
     let mut last = u8::MAX;
     while let Some(chunk) = resp.chunk().await.map_err(fail)? {
+        // «Пропустить» на сплэше: не докачиваем и не ставим
+        if cancelled.load(Ordering::SeqCst) {
+            return Err("update.err.cancelled");
+        }
         buf.extend_from_slice(&chunk);
         // Без Content-Length процентов не будет — checked_div вернёт None
         if let Some(pct) = (buf.len() as u64 * 100).checked_div(total) {
@@ -178,9 +209,52 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_release_verifies() {
-        let m = fetch_manifest().await.unwrap();
-        let exe = download(&m.url, |_| {}).await.unwrap();
+        let m = fetch_manifest(8).await.unwrap();
+        let exe = download(&m.url, &AtomicBool::new(false), |_| {}).await.unwrap();
         assert_eq!(verify(&exe, &m, PUBLIC_KEY), Ok(()));
+    }
+
+    /// Отдаёт `body` на один HTTP-запрос и возвращает адрес.
+    fn serve_once(body: &'static [u8]) -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            use std::io::{Read, Write};
+            if let Ok((mut s, _)) = listener.accept() {
+                let mut buf = [0u8; 2048];
+                let _ = s.read(&mut buf);
+                let head = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+                let _ = s.write_all(head.as_bytes());
+                let _ = s.write_all(body);
+            }
+        });
+        format!("http://{addr}/FoundryPerformance.exe")
+    }
+
+    #[tokio::test]
+    async fn download_reports_progress() {
+        let url = serve_once(b"hello");
+        let last = std::sync::Mutex::new(0u8);
+        let bytes = download(&url, &AtomicBool::new(false), |p| *last.lock().unwrap() = p).await;
+        assert_eq!(bytes, Ok(b"hello".to_vec()));
+        assert_eq!(*last.lock().unwrap(), 100);
+    }
+
+    #[tokio::test]
+    async fn cancelled_download_stops() {
+        let url = serve_once(b"hello");
+        assert_eq!(download(&url, &AtomicBool::new(true), |_| {}).await, Err("update.err.cancelled"));
+    }
+
+    #[test]
+    fn local_feed_only_in_dev() {
+        let env = Some("http://127.0.0.1:8000/latest.json");
+        assert_eq!(local_feed(false, env), None);
+        assert_eq!(local_feed(true, None), None);
+        assert_eq!(
+            local_feed(true, env),
+            Some(("http://127.0.0.1:8000/latest.json".to_string(), "http://127.0.0.1:8000/".to_string()))
+        );
     }
 
     #[test]

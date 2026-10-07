@@ -30,7 +30,8 @@
 	const title = $derived(server ? server.name : t("tuning.global"));
 	// Переключатель уровня: общие настройки (движок, вид) и правки выбранного сервера
 	const selected = $derived(dto.servers.find((s) => s.id === app.selectedId) ?? null);
-	const scopeOptions = $derived([{ value: "global", label: t("tuning.global") }, ...(selected ? [{ value: selected.id, label: selected.name }] : [])]);
+	const scopeServer = $derived(server ?? selected);
+	const scopeOptions = $derived([{ value: "global", label: t("tuning.global") }, ...(scopeServer ? [{ value: scopeServer.id, label: scopeServer.name }] : [])]);
 	const toggles = $derived<{ key: keyof Levers; label: string; tipKey: TipKey }[]>([
 		{ key: "adaptive", label: t("tuning.adaptive"), tipKey: "adaptive" },
 		{ key: "lightAnimation", label: t("tuning.lightAnimation"), tipKey: "lightAnimation" },
@@ -44,7 +45,7 @@
 	const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 	const profiles = $derived(
-		(["quality", "balance", "potato"] as ProfileId[]).map((p) => ({ value: p as ProfileId | "inherit", label: t(`profile.${p}.long`).toUpperCase() }))
+		(["quality", "balance", "potato"] as ProfileId[]).map((p) => ({ value: p as ProfileId | "inherit", label: t(`profile.${p}.long`) }))
 	);
 	const profileOptions = $derived(server ? [{ value: "inherit" as const, label: t("profile.inherit") }, ...profiles] : profiles);
 	const profileValue = $derived<ProfileId | "inherit">(server ? (server.profile ?? "inherit") : dto.settings.profile);

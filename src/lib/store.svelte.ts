@@ -67,7 +67,7 @@ class AppStore {
 		const dto = await api.getState();
 		this.dto = dto;
 		this.applyLocale();
-		void gpuProbe().then((p) => (this.gpu = p));
+		void gpuProbe().then((p) => (this.gpu = p)).catch(() => {});
 		this.selectedId = initialSelection(dto.servers, dto.settings.lastServer);
 		for (const s of dto.servers) void this.probe(s);
 		void this.checkUpdate();

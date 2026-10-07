@@ -148,7 +148,6 @@
   "install.step.copy": "Копирование",
   "install.step.shortcuts": "Ярлыки",
   "install.step.register": "Регистрация",
-  "install.step.done": "Готово",
   "install.err.notAbsolute": "Укажите полный путь, например D:\\Games\\FoundryPerformance",
   "install.err.root": "Не ставьте прямо в корень диска — выберите папку",
   "install.err.system": "Это системная папка Windows — выберите другую",

@@ -24,8 +24,10 @@ function opens(make: () => CanvasLike, attrs?: WebGLContextAttributes): boolean 
 }
 
 /**
- * Проба WebView самого лаунчера: флаги ANGLE и драйвер у него те же, что у игрового окна,
- * но холст Foundry здесь не проверяется. С `failIfMajorPerformanceCaveat` Chromium отказывает,
+ * Проба WebView самого лаунчера. Окно лаунчера создаётся без `additional_browser_args` и с обычной
+ * папкой данных WebView2, поэтому здесь бэкенд ANGLE по умолчанию; с игровым окном совпадают только
+ * драйвер и видеокарта, а выбранный в «Настройке» бэкенд ANGLE не проверяется. Холст Foundry тоже
+ * не проверяется. С `failIfMajorPerformanceCaveat` Chromium отказывает,
  * если WebGL2 есть только программный (SwiftShader, WARP).
  */
 export function probeGpu(make: () => CanvasLike = () => document.createElement("canvas") as CanvasLike): GpuProbe {

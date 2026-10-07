@@ -54,8 +54,12 @@ export const setupApi = {
 };
 
 export const updateApi = {
-	check: () => call<UpdateInfo | null>("check_update"),
+	/** `timeoutS` — сколько ждать ленту; без него Rust ждёт 8 с. */
+	check: (timeoutS?: number) => call<UpdateInfo | null>("check_update", { timeoutS: timeoutS ?? null }),
 	apply: () => call<void>("apply_update"),
+	cancel: () => call<void>("cancel_update"),
+	/** Пилюля «Обновить до X»: лаунчер закрывается, обновление ставит сплэш. */
+	restartToUpdate: () => call<void>("restart_to_update"),
 	/** Проценты загрузки; возвращает функцию отписки. */
 	async onProgress(cb: (pct: number) => void): Promise<() => void> {
 		if (inTauri) {
@@ -66,6 +70,20 @@ export const updateApi = {
 		return mockOnUpdateProgress(cb);
 	}
 };
+
+export const splashApi = {
+	/** `updated` — версия, до которой только что обновились; отдаётся один раз. */
+	flags: () => call<{ updated: string | null }>("splash_flags"),
+	/** Открыть лаунчер или игру по адресу и закрыть сплэш. */
+	done: () => call<void>("splash_done")
+};
+
+/** Метка окна: `splash` — сплэш обновления. В браузерном превью — `?splash`. */
+export async function windowLabel(): Promise<string> {
+	if (!inTauri) return new URLSearchParams(location.search).has("splash") ? "splash" : "main";
+	const { getCurrentWindow } = await import("@tauri-apps/api/window");
+	return getCurrentWindow().label;
+}
 
 async function currentWindow() {
 	if (!inTauri) return null;

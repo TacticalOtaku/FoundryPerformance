@@ -10,7 +10,7 @@
 </script>
 
 <header class="bar" data-tauri-drag-region>
-	<span class="app" aria-hidden="true"><Icon name="app" /></span>
+	<span class="app" aria-hidden="true" data-tauri-drag-region><Icon name="app" /></span>
 	<b class="ttl" data-tauri-drag-region>Foundry Performance</b>
 	{#if start}{@render start()}{/if}
 	<span class="sp" data-tauri-drag-region></span>
@@ -41,6 +41,12 @@
 		background: var(--tc-sunken);
 		box-shadow: var(--tc-press);
 		color: var(--tc-accent-text);
+	}
+	/* декор не перехватывает клик: перетаскивание срабатывает только на самой полосе */
+	.app :global(svg),
+	.bar :global(span.chip),
+	.bar :global(span.pill) {
+		pointer-events: none;
 	}
 	.ttl {
 		font-weight: 600;

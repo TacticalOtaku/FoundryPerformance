@@ -1,14 +1,6 @@
-import type { LedState, ProbeResult, Server } from "./types";
+import type { ProbeResult, Server } from "./types";
 
 export type SlotStatus = "running" | "idle" | "stopped" | "unknown" | "checking";
-
-export const LED_FOR: Record<SlotStatus, LedState> = {
-	running: "ok",
-	idle: "warn",
-	stopped: "err",
-	unknown: "off",
-	checking: "pending"
-};
 
 /** Статус проверяем по настоящему адресу Foundry, если агент его уже сообщил. */
 export function probeUrl(s: Server): string {

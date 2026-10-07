@@ -130,7 +130,8 @@ pub fn run() {
             installer::commands::open_installed,
             installer::commands::uninstall,
             installer::commands::check_update,
-            installer::commands::apply_update
+            installer::commands::apply_update,
+            installer::commands::cancel_update
         ])
         .build(tauri::generate_context!())
         .expect("error while building Foundry Performance");

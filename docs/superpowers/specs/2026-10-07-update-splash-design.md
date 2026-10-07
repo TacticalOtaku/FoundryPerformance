@@ -125,7 +125,7 @@ pub struct SplashState(Mutex<AfterSplash>);
 | `verifying` (pct = 100) | `breathe` | «Проверяю подпись» | «затем перезапуск» | — |
 | `restarting` | `breathe` | «Перезапускаю» | `v{version}` | — |
 | `offline` | `muted` | «Нет связи с GitHub» | «открываю лаунчер…» | — |
-| `error(key)` | `error` | текст `update.err.*` | «установка отменена, версия {current} цела» | «Открыть лаунчер» |
+| `error(key)` | `error` | текст `update.err.*` | «версия {current} не тронута» | «Открыть лаунчер» |
 | `updated(version)` | `full` | «Обновлено до {version}» | — | — |
 
 Переходы:

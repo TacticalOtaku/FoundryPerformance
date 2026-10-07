@@ -78,6 +78,12 @@ class AppStore {
 		}, 60_000);
 	}
 
+	/** Сплэш: только тема, акцент и язык — без проб серверов и фоновой проверки обновлений. */
+	async loadForSplash(): Promise<void> {
+		this.dto = await api.getState();
+		this.applyLocale();
+	}
+
 	private applyLocale(): void {
 		const pref = this.dto?.settings.locale ?? "auto";
 		setLocale(pref === "auto" ? systemLocale() : pref);

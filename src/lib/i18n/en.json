@@ -213,5 +213,18 @@
   "status.checking": "checking",
   "install.retry": "Retry",
   "install.progress": "Installation progress",
-  "uninstall.close": "Close"
+  "uninstall.close": "Close",
+  "splash.checking": "Checking for updates",
+  "splash.downloading": "Downloading {version}",
+  "splash.verifying": "Verifying the signature",
+  "splash.verifyingHint": "then restart",
+  "splash.restarting": "Restarting",
+  "splash.offline": "GitHub is unreachable",
+  "splash.openingLauncher": "opening the launcher…",
+  "splash.updated": "Updated to {version}",
+  "splash.skip": "Skip",
+  "splash.openLauncher": "Open launcher",
+  "splash.keptVersion": "version {version} is untouched",
+  "splash.progressLabel": "Update download",
+  "update.err.cancelled": "Update skipped"
 }

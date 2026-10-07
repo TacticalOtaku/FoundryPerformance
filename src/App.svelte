@@ -7,6 +7,7 @@
 	import SlotEditor from "./screens/SlotEditor.svelte";
 	import TuningScreen from "./screens/TuningScreen.svelte";
 	import UninstallScreen from "./screens/UninstallScreen.svelte";
+	import Kit from "./dev/Kit.svelte";
 	import { setupApi } from "./lib/api";
 	import { setLocale, t } from "./lib/i18n.svelte";
 	import { accentStyle, DEFAULT_ACCENT } from "./lib/palette";
@@ -28,6 +29,8 @@
 				? t("uninstall.channel")
 				: ""
 	);
+
+	const kit = import.meta.env.DEV && new URLSearchParams(location.search).has("kit");
 
 	const DARK = "(prefers-color-scheme: dark)";
 	let systemDark = $state(matchMedia(DARK).matches);
@@ -64,7 +67,9 @@
 		<TitleBar {channel} />
 	{/if}
 	<main class="screen">
-		{#if mode?.mode === "install" && mode.install}
+		{#if kit}
+			<Kit />
+		{:else if mode?.mode === "install" && mode.install}
 			<InstallScreen info={mode.install} />
 		{:else if mode?.mode === "uninstall"}
 			<UninstallScreen />

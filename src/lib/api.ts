@@ -75,6 +75,7 @@ async function currentWindow() {
 
 export const windowControls = {
 	minimize: async () => void (await currentWindow())?.minimize(),
+	toggleMaximize: async () => void (await currentWindow())?.toggleMaximize(),
 	close: async () => void (await currentWindow())?.close(),
 	destroy: async () => void (await currentWindow())?.destroy()
 };

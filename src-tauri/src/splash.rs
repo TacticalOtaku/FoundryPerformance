@@ -51,8 +51,9 @@ pub fn splash_flags(state: State<'_, SplashState>) -> SplashFlags {
     SplashFlags { updated: state.take_updated() }
 }
 
+/// async: на Windows создание окна из синхронной команды может взаимно заблокироваться.
 #[tauri::command]
-pub fn splash_done(app: AppHandle, state: State<'_, SplashState>, data: State<'_, AppState>) {
+pub async fn splash_done(app: AppHandle, state: State<'_, SplashState>, data: State<'_, AppState>) -> Result<(), String> {
     let game = match state.take_after() {
         AfterSplash::Adhoc { url, mode } => commands::launch_adhoc(&app, &data, &url, mode)
             .map_err(|e| eprintln!("[foundry-performance] launch after splash failed: {e}"))
@@ -68,11 +69,12 @@ pub fn splash_done(app: AppHandle, state: State<'_, SplashState>, data: State<'_
     if let Some(w) = app.get_webview_window(windows::SPLASH) {
         let _ = w.destroy();
     }
+    Ok(())
 }
 
-/// Пилюля «Обновить до X»: тот же сплэш, после него — снова лаунчер.
+/// Пилюля «Обновить до X»: тот же сплэш, после него — снова лаунчер. async — по той же причине.
 #[tauri::command]
-pub fn restart_to_update(app: AppHandle, state: State<'_, SplashState>) -> Result<(), String> {
+pub async fn restart_to_update(app: AppHandle, state: State<'_, SplashState>) -> Result<(), String> {
     *state.after.lock().expect("splash state poisoned") = AfterSplash::Launcher;
     windows::open_splash(&app).map_err(|e| e.to_string())?;
     // Программный destroy() не порождает CloseRequested — приложение не выходит

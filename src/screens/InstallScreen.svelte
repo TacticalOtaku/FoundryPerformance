@@ -106,7 +106,7 @@
 				<p class="lead">{lead}</p>
 
 				{#if phase === "done"}
-					<p class="done" role="status">{t("install.done")}</p>
+					<p class="ok" role="status">{t("install.done")}</p>
 					<div class="grow"></div>
 					{#if !launch}<Primary size="lg" onclick={() => setupApi.openInstalled()}>{t("install.openInstalled")}</Primary>{/if}
 				{:else}
@@ -134,7 +134,7 @@
 					<div class="grow"></div>
 					{#if info.state === "current" && phase !== "running"}
 						<div class="pair">
-							<Button onclick={run}>{goLabel}</Button>
+							<Button onclick={run}>{phase === "error" ? t("install.retry") : goLabel}</Button>
 							<Primary size="lg" onclick={() => setupApi.openInstalled()}>{t("install.openInstalled")}</Primary>
 						</div>
 					{:else}
@@ -192,7 +192,7 @@
 		gap: 16px;
 		margin-top: 24px;
 	}
-	.done {
+	.ok {
 		margin-top: 24px;
 		font-weight: 600;
 		color: var(--tc-good);

@@ -198,7 +198,6 @@
   "gpu.hw.no": "No hardware acceleration",
   "gpu.advice.software": "Update the GPU driver and make sure hardware acceleration isn't turned off in Windows.",
   "gpu.advice.none": "Foundry won't run without WebGL2: update the GPU driver.",
-  "update.progress": "Downloading {pct}%",
   "update.checkHint": "Click to check for updates.",
   "main.profile": "Profile",
   "main.continue": "Continue",

@@ -47,8 +47,6 @@ class AppStore {
 	launching = $state(false);
 	/** Доступное обновление (null — нет или проверка не удалась). */
 	update = $state<UpdateInfo | null>(null);
-	/** Проценты загрузки обновления; null — не качаем. */
-	updating = $state<number | null>(null);
 	/** Итог ручной проверки обновлений; через несколько секунд снова idle. */
 	updateCheck = $state<UpdateCheck>("idle");
 	#checkReset: ReturnType<typeof setTimeout> | undefined;
@@ -221,7 +219,7 @@ class AppStore {
 
 	/** `manual` — нажатие кнопки: показываем ход и итог проверки. Фоновая — молча. */
 	async checkUpdate(manual = false): Promise<void> {
-		if (this.updateCheck === "checking" || this.updating !== null) return;
+		if (this.updateCheck === "checking") return;
 		if (manual) {
 			clearTimeout(this.#checkReset);
 			this.updateCheck = "checking";
@@ -241,19 +239,12 @@ class AppStore {
 		this.#checkReset = setTimeout(() => (this.updateCheck = "idle"), 5000);
 	}
 
-	async applyUpdate(): Promise<void> {
-		if (this.updating !== null) return;
-		this.updating = 0;
-		this.error = null;
-		const off = await updateApi.onProgress((pct) => (this.updating = pct));
+	/** Лаунчер закрывается, обновление ставит сплэш и потом открывает лаунчер заново. */
+	async restartToUpdate(): Promise<void> {
 		try {
-			// при успехе Rust запускает новую версию и закрывает эту
-			await updateApi.apply();
+			await updateApi.restartToUpdate();
 		} catch (e) {
 			this.error = String(e);
-			this.updating = null;
-		} finally {
-			off();
 		}
 	}
 

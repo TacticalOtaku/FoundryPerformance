@@ -9,19 +9,27 @@
 	import Tooltip from "./components/Tooltip.svelte";
 	import InstallScreen from "./screens/InstallScreen.svelte";
 	import MainScreen from "./screens/MainScreen.svelte";
+	import SplashScreen from "./screens/SplashScreen.svelte";
 	import SlotEditor from "./screens/SlotEditor.svelte";
 	import TuningScreen from "./screens/TuningScreen.svelte";
 	import UninstallScreen from "./screens/UninstallScreen.svelte";
 	import Kit from "./dev/Kit.svelte";
-	import { setupApi } from "./lib/api";
+	import { setupApi, windowLabel } from "./lib/api";
 	import { setLocale, t } from "./lib/i18n.svelte";
 	import { accentStyle, DEFAULT_ACCENT } from "./lib/palette";
 	import { app } from "./lib/store.svelte";
 	import type { ModeDto } from "./lib/types";
 
-	// Режим решает Rust: тот же exe — установщик, удаление или лаунчер
+	// Режим решает Rust: тот же exe — установщик, удаление или лаунчер; сплэш — отдельное окно
 	let mode = $state<ModeDto | null>(null);
-	void setupApi.getMode().then((m) => {
+	let splash = $state(false);
+	void windowLabel().then(async (label) => {
+		if (label === "splash") {
+			splash = true;
+			await app.loadForSplash();
+			return;
+		}
+		const m = await setupApi.getMode();
 		mode = m;
 		if (m.mode === "launcher") void app.load();
 		else setLocale(navigator.language.toLowerCase().startsWith("ru") ? "ru" : "en");
@@ -65,48 +73,52 @@
 	});
 </script>
 
-<div class="tc-root fp-app" bind:this={root} data-theme={dark ? "dark" : "light"} style={accent}>
-	{#if mode?.mode === "launcher" && app.dto}
-		<TitleBar>
-			{#snippet start()}
-				<VersionChip version={app.dto!.version} />
-				<UpdatePill />
-			{/snippet}
-			{#snippet end()}
-				<GpuBadge />
-				<IconButton
-					label={t("main.tune")}
-					size={30}
-					on={app.screen === "tuning"}
-					onclick={() => app.openTuning(app.selected ? { kind: "server", id: app.selected.id } : { kind: "global" })}
-				>
-					<Icon name="sliders" />
-				</IconButton>
-			{/snippet}
-		</TitleBar>
+<div class="tc-root" class:fp-app={!splash} bind:this={root} data-theme={dark ? "dark" : "light"} style={accent}>
+	{#if splash}
+		{#if app.dto}<SplashScreen current={app.dto.version} />{/if}
 	{:else}
-		<TitleBar>
-			{#snippet start()}{#if channel}<Chip>{channel}</Chip>{/if}{/snippet}
-		</TitleBar>
-	{/if}
-	<main class="screen">
-		{#if kit}
-			<Kit />
-		{:else if mode?.mode === "install" && mode.install}
-			<InstallScreen info={mode.install} />
-		{:else if mode?.mode === "uninstall"}
-			<UninstallScreen />
-		{:else if !app.dto}
-			<div class="boot">…</div>
-		{:else if app.screen === "tuning"}
-			<TuningScreen />
-		{:else if app.screen === "slot" && app.editing}
-			<SlotEditor />
+		{#if mode?.mode === "launcher" && app.dto}
+			<TitleBar>
+				{#snippet start()}
+					<VersionChip version={app.dto!.version} />
+					<UpdatePill />
+				{/snippet}
+				{#snippet end()}
+					<GpuBadge />
+					<IconButton
+						label={t("main.tune")}
+						size={30}
+						on={app.screen === "tuning"}
+						onclick={() => app.openTuning(app.selected ? { kind: "server", id: app.selected.id } : { kind: "global" })}
+					>
+						<Icon name="sliders" />
+					</IconButton>
+				{/snippet}
+			</TitleBar>
 		{:else}
-			<MainScreen />
+			<TitleBar>
+				{#snippet start()}{#if channel}<Chip>{channel}</Chip>{/if}{/snippet}
+			</TitleBar>
 		{/if}
-	</main>
-	<Tooltip />
+		<main class="screen">
+			{#if kit}
+				<Kit />
+			{:else if mode?.mode === "install" && mode.install}
+				<InstallScreen info={mode.install} />
+			{:else if mode?.mode === "uninstall"}
+				<UninstallScreen />
+			{:else if !app.dto}
+				<div class="boot">…</div>
+			{:else if app.screen === "tuning"}
+				<TuningScreen />
+			{:else if app.screen === "slot" && app.editing}
+				<SlotEditor />
+			{:else}
+				<MainScreen />
+			{/if}
+		</main>
+		<Tooltip />
+	{/if}
 </div>
 
 <style>

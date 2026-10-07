@@ -213,5 +213,18 @@
   "status.checking": "проверяю",
   "install.retry": "Повторить",
   "install.progress": "Ход установки",
-  "uninstall.close": "Закрыть"
+  "uninstall.close": "Закрыть",
+  "splash.checking": "Проверяю обновления",
+  "splash.downloading": "Скачиваю {version}",
+  "splash.verifying": "Проверяю подпись",
+  "splash.verifyingHint": "затем перезапуск",
+  "splash.restarting": "Перезапускаю",
+  "splash.offline": "Нет связи с GitHub",
+  "splash.openingLauncher": "открываю лаунчер…",
+  "splash.updated": "Обновлено до {version}",
+  "splash.skip": "Пропустить",
+  "splash.openLauncher": "Открыть лаунчер",
+  "splash.keptVersion": "версия {version} не тронута",
+  "splash.progressLabel": "Загрузка обновления",
+  "update.err.cancelled": "Обновление пропущено"
 }

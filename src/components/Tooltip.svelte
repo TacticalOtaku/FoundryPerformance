@@ -45,6 +45,11 @@
 				{#each d.lines as line, i (i)}<li>{line}</li>{/each}
 			</ul>
 		{/if}
+		{#if d.checks?.length}
+			<ul class="checks">
+				{#each d.checks as c, i (i)}<li><i class:ok={c.ok} aria-hidden="true"></i>{c.text}</li>{/each}
+			</ul>
+		{/if}
 		{#if d.fps !== undefined || d.look !== undefined}
 			<div class="meters mono">
 				{#if d.fps !== undefined}
@@ -68,78 +73,66 @@
 	.tip {
 		position: fixed;
 		z-index: 100;
-		width: max-content;
-		max-width: 320px;
+		display: grid;
+		gap: 6px;
+		max-width: 300px;
 		padding: 10px 12px;
-		background: var(--inverse-bg);
-		color: var(--inverse-fg);
+		border-radius: var(--tc-r-block);
+		background: var(--tc-surface);
+		box-shadow:
+			var(--tc-raise),
+			0 18px 40px -16px rgb(0 0 0 / 40%);
+		color: var(--tc-ink);
+		font-size: 12.5px;
+		line-height: 1.4;
 		pointer-events: none;
-		animation: appear 0.12s var(--ease-out);
-	}
-	.tip::after {
-		content: "";
-		position: absolute;
-		left: calc(var(--arrow) - 5px);
-		border: 5px solid transparent;
-	}
-	.top::after {
-		top: 100%;
-		border-top-color: var(--inverse-bg);
-	}
-	.bottom::after {
-		bottom: 100%;
-		border-bottom-color: var(--inverse-bg);
+		animation: tip-in 160ms var(--tc-ease);
 	}
 	b {
-		display: block;
-		font-weight: 500;
-		margin-bottom: 4px;
-	}
-	b.solo {
-		margin-bottom: 0;
+		font-weight: 600;
 	}
 	p {
-		margin: 0;
-		font-size: 12px;
-		line-height: 1.45;
-		color: var(--ink-3);
+		color: var(--tc-muted);
 	}
 	ul {
 		display: grid;
-		gap: 5px;
-		margin: 0;
-		padding: 0;
+		gap: 3px;
 		list-style: none;
-		font-size: 12px;
-		line-height: 1.45;
-		color: var(--ink-3);
+		color: var(--tc-muted);
 	}
-	li {
-		position: relative;
-		padding-left: 12px;
+	ul:not(.checks) li::before {
+		content: "– ";
 	}
-	/* маркер — сигнальная риска, как метки на шкале */
-	li::before {
-		content: "";
-		position: absolute;
-		left: 0;
-		top: 0.7em;
-		width: 6px;
-		height: 1.5px;
-		background: var(--signal);
+	.checks {
+		color: var(--tc-ink);
+	}
+	.checks li {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.checks i {
+		width: 7px;
+		height: 7px;
+		flex: none;
+		border-radius: 99px;
+		background: var(--tc-danger);
+	}
+	.checks i.ok {
+		background: var(--tc-good);
 	}
 	.meters {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		align-items: center;
-		gap: 5px 16px;
-		margin-top: 8px;
-		padding-top: 8px;
-		border-top: 1px solid var(--ink-2);
-		white-space: nowrap;
+		display: flex;
+		gap: 14px;
+		margin-top: 2px;
+		font: 500 9.5px/1 var(--tc-font-mono);
+		letter-spacing: 0.06em;
+		color: var(--tc-muted);
 	}
 	.meter {
-		display: contents;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 	}
 	.bars {
 		display: inline-flex;
@@ -148,17 +141,24 @@
 	.bars i {
 		width: 5px;
 		height: 10px;
-		background: var(--ink-2);
+		border-radius: 2px;
+		background: var(--tc-sunken);
 	}
-	.fps i.on {
-		background: var(--led-ok);
+	.bars.fps i.on {
+		background: var(--tc-accent);
 	}
-	.look i.on {
-		background: var(--signal);
+	.bars.look i.on {
+		background: var(--tc-muted);
 	}
-	@keyframes appear {
+	@keyframes tip-in {
 		from {
 			opacity: 0;
+			transform: translateY(2px);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.tip {
+			animation: none;
 		}
 	}
 </style>

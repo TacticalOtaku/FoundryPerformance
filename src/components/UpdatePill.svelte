@@ -5,14 +5,12 @@
 	import Pill from "./tactile/Pill.svelte";
 </script>
 
-{#if app.updating !== null}
-	<Pill tone="accent" role="status">{t("update.progress", { pct: app.updating })}</Pill>
-{:else if app.update}
+{#if app.update}
 	{@const u = app.update}
 	<Pill
 		tone="accent"
 		button
-		onclick={() => app.applyUpdate()}
+		onclick={() => void app.restartToUpdate()}
 		tip={{ title: t("update.notesTitle", { version: u.version }), body: t("update.noNotes"), lines: noteLines(u.notes) }}
 	>
 		{t("update.available", { version: u.version })}

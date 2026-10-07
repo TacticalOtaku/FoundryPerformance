@@ -1,6 +1,11 @@
 <script lang="ts">
 	import TitleBar from "./components/TitleBar.svelte";
-	import VersionTag from "./components/VersionTag.svelte";
+	import GpuBadge from "./components/GpuBadge.svelte";
+	import UpdatePill from "./components/UpdatePill.svelte";
+	import VersionChip from "./components/VersionChip.svelte";
+	import Chip from "./components/tactile/Chip.svelte";
+	import Icon from "./components/tactile/Icon.svelte";
+	import IconButton from "./components/tactile/IconButton.svelte";
 	import Tooltip from "./components/Tooltip.svelte";
 	import InstallScreen from "./screens/InstallScreen.svelte";
 	import MainScreen from "./screens/MainScreen.svelte";
@@ -62,9 +67,27 @@
 
 <div class="tc-root fp-app" bind:this={root} data-theme={dark ? "dark" : "light"} style={accent}>
 	{#if mode?.mode === "launcher" && app.dto}
-		<TitleBar {channel}><VersionTag version={app.dto.version} /></TitleBar>
+		<TitleBar>
+			{#snippet start()}
+				<VersionChip version={app.dto!.version} />
+				<UpdatePill />
+			{/snippet}
+			{#snippet end()}
+				<GpuBadge />
+				<IconButton
+					label={t("main.tune")}
+					size={30}
+					on={app.screen === "tuning"}
+					onclick={() => app.openTuning(app.selected ? { kind: "server", id: app.selected.id } : { kind: "global" })}
+				>
+					<Icon name="sliders" />
+				</IconButton>
+			{/snippet}
+		</TitleBar>
 	{:else}
-		<TitleBar {channel} />
+		<TitleBar>
+			{#snippet start()}{#if channel}<Chip>{channel}</Chip>{/if}{/snippet}
+		</TitleBar>
 	{/if}
 	<main class="screen">
 		{#if kit}

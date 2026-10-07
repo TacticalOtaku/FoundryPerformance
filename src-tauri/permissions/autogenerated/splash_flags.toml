@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-splash-flags"
+description = "Enables the splash_flags command without any pre-configured scope."
+commands.allow = ["splash_flags"]
+
+[[permission]]
+identifier = "deny-splash-flags"
+description = "Denies the splash_flags command without any pre-configured scope."
+commands.deny = ["splash_flags"]

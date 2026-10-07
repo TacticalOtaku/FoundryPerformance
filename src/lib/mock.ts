@@ -4,6 +4,9 @@ import type { GpuProbe } from "./gpu";
 const progressListeners = new Set<(p: InstallProgress) => void>();
 let mockCache = 91_000_000;
 const updateListeners = new Set<(pct: number) => void>();
+let mockCancelled = false;
+/** Превью обновления: `?update=1` — найдено, `bad` — найдено с плохой подписью, `fail` — нет связи, `updated` — старт после обновления. */
+const updateParam = () => new URLSearchParams(location.search).get("update");
 
 export function mockOnUpdateProgress(cb: (pct: number) => void): () => void {
 	updateListeners.add(cb);
@@ -148,21 +151,47 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 			return { freed, pending: false };
 		}
 		case "check_update":
-			// превью: ?update=1 — есть обновление, ?update=fail — нет связи
-			switch (new URLSearchParams(location.search).get("update")) {
+			switch (updateParam()) {
 				case "1":
-					return { version: "0.2.3", notes: "- Статус сервера в кружке слота\n- Автообновление через GitHub" };
+				case "bad":
+					await delay(600);
+					return { version: "0.2.3", notes: "- Сплэш обновления\n- Иконка в стиле Tactile" };
 				case "fail":
+					await delay(800);
 					throw "update.err.check";
 				default:
+					await delay(600);
 					return null;
 			}
 		case "apply_update":
-			for (let p = 0; p <= 100; p += 10) {
+			mockCancelled = false;
+			for (let p = 0; p <= 100; p += 5) {
+				if (mockCancelled) throw "update.err.cancelled";
 				updateListeners.forEach((cb) => cb(p));
 				await delay(150);
 			}
-			throw "update.err.signature";
+			await delay(900);
+			if (updateParam() === "bad") throw "update.err.signature";
+			return null;
+		case "cancel_update":
+			mockCancelled = true;
+			return null;
+		case "splash_flags":
+			return { updated: updateParam() === "updated" ? "0.2.3" : null };
+		case "splash_done": {
+			// превью: «открыть лаунчер» — та же страница без сплэша
+			const q = new URLSearchParams(location.search);
+			q.delete("splash");
+			q.delete("update");
+			location.search = q.toString();
+			return null;
+		}
+		case "restart_to_update": {
+			const q = new URLSearchParams(location.search);
+			q.set("splash", "");
+			location.search = q.toString();
+			return null;
+		}
 		case "uninstall":
 			await delay(600);
 			return null;

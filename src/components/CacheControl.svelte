@@ -3,7 +3,11 @@
 	import { api } from "../lib/api";
 	import { formatBytes } from "../lib/bytes";
 	import { locale, t } from "../lib/i18n.svelte";
+	import { app } from "../lib/store.svelte";
 	import { tip, tipFor } from "../lib/tooltip.svelte";
+	import Band from "./tactile/Band.svelte";
+	import Button from "./tactile/Button.svelte";
+	import Label from "./tactile/Label.svelte";
 
 	/** idle → armed (ждём второго нажатия) → busy → итог на клавише, затем снова idle. */
 	type Phase = { kind: "idle" } | { kind: "armed" } | { kind: "busy" } | { kind: "done"; text: string; warn: boolean };
@@ -15,6 +19,7 @@
 	let phase = $state<Phase>({ kind: "idle" });
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
+	const limit = $derived((app.dto?.settings.engine.diskCacheMb ?? 2048) * 1024 * 1024);
 	const fmt = (n: number) => formatBytes(n, { mb: t("unit.mb"), gb: t("unit.gb") }, locale());
 
 	onMount(() => {
@@ -27,7 +32,7 @@
 		timer = setTimeout(() => (phase = { kind: "idle" }), ms);
 	}
 
-	async function press() {
+	async function onPress() {
 		if (phase.kind === "busy") return;
 		if (phase.kind !== "armed") {
 			phase = { kind: "armed" };
@@ -54,16 +59,18 @@
 </script>
 
 <div class="cache" {@attach tip(() => tipFor("cacheClear", t("cache.title")))}>
-	<span class="lbl silk">{t("cache.title")}</span>
-	<div class="row">
-		<span class="used mono">{bytes === null ? "…" : fmt(bytes)}</span>
-		<button
-			class="key mono"
-			class:armed={phase.kind === "armed"}
-			class:warn={phase.kind === "done" && phase.warn}
+	<div class="head">
+		<Label>{t("cache.title")}</Label>
+		<span class="used">{bytes === null ? "…" : `${fmt(bytes)} / ${fmt(limit)}`}</span>
+	</div>
+	<Band value={bytes === null ? 0 : bytes / limit} label={t("cache.title")} />
+	<div>
+		<Button
+			danger
+			armed={phase.kind === "armed" || (phase.kind === "done" && phase.warn)}
 			aria-live="polite"
 			disabled={phase.kind === "busy"}
-			onclick={press}>{label}</button
+			onclick={onPress}>{label}</Button
 		>
 	</div>
 </div>
@@ -71,45 +78,14 @@
 <style>
 	.cache {
 		display: grid;
-		gap: 7px;
-	}
-	.row {
-		display: flex;
-		align-items: center;
 		gap: 8px;
 	}
-	/* занятое место — на мини-индикаторе, как число у фейдера FPS */
+	.head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
 	.used {
-		min-width: 64px;
-		padding: 4px 8px;
-		text-align: right;
-		color: var(--lcd-fg);
-		background: var(--lcd-bg);
-		border: 1px solid rgb(0 0 0 / 0.6);
-		box-shadow: var(--recess);
-		text-shadow: var(--glow-lcd);
-	}
-	.key {
-		padding: 5px 10px;
-		color: var(--ink-2);
-		background: var(--face-2);
-		box-shadow: var(--lift);
-		transition:
-			color 0.12s,
-			background 0.12s;
-	}
-	.key:hover {
-		color: var(--ink);
-	}
-	.key:active {
-		box-shadow: var(--recess);
-	}
-	/* второе нажатие удалит файлы — клавиша загорается сигнальным */
-	.key.armed {
-		color: var(--signal-ink);
-		background: linear-gradient(var(--signal-hi), var(--signal));
-	}
-	.key.warn {
-		color: var(--signal-text);
+		font: 600 12.5px/1 var(--tc-font-mono);
 	}
 </style>

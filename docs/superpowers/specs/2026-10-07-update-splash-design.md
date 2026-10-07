@@ -49,7 +49,8 @@
 ### 3.1 Окно
 
 `windows::open_splash(app)`: метка `splash`, `WebviewUrl::App("index.html")`, 300 × 340 логических
-пикселей, `decorations(false)`, `resizable(false)`, `skip_taskbar(true)`, `center()`,
+пикселей, `decorations(false)`, `resizable(false)`, `center()`, в панели задач (экран ошибки ждёт
+клика и не должен теряться под другими окнами),
 `visible(false)` → `show()` после построения. Положение окна не запоминается (`WindowMemory`
 роль ему не выдаёт). Константа `SPLASH = "splash"` рядом с `LAUNCHER` и `GAME`.
 
@@ -80,7 +81,8 @@ pub struct SplashState(Mutex<AfterSplash>);
 - `restart_to_update`: ставит `AfterSplash::Launcher`, открывает `splash`, затем `destroy()`
   лаунчера. Программный `destroy()` не порождает `CloseRequested`, приложение не выходит.
 - `splash_flags` → `{ updated: Option<String> }`: версия текущего exe, если процесс запущен
-  с `--updated`, иначе `None`.
+  с `--updated`, иначе `None`. Значение отдаётся один раз (хранится в `SplashState` и забирается
+  `take()`): сплэш, открытый пилюлей в том же процессе, не покажет «Обновлено» повторно.
 - `cancel_update`: ставит флаг отмены. «Пропустить» вызывает `cancel_update`, затем `splash_done`.
 
 ### 3.4 Закрытие
@@ -99,7 +101,8 @@ pub struct SplashState(Mutex<AfterSplash>);
 В `cfg!(debug_assertions)` переменная окружения `FP_UPDATE_FEED` задаёт адрес ленты, а
 разрешённый префикс загрузки становится каталогом этой ленты. При заданной переменной
 `check_update` в debug не возвращает «нет обновлений». В release-сборке переменная
-игнорируется — код под `#[cfg(debug_assertions)]`. Проверки хеша, подписи и версии не меняются.
+игнорируется: чистая функция `local_feed(dev, env)` вызывается с `dev = cfg!(debug_assertions)`
+и проверяется тестом. Проверки хеша, подписи и версии не меняются.
 
 ## 4. Svelte
 

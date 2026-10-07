@@ -1,12 +1,23 @@
 <script lang="ts">
-	import Fader from "../components/Fader.svelte";
 	import CacheControl from "../components/CacheControl.svelte";
-	import Segmented from "../components/Segmented.svelte";
-	import Toggle from "../components/Toggle.svelte";
+	import Button from "../components/tactile/Button.svelte";
+	import Core from "../components/tactile/Core.svelte";
+	import Field from "../components/tactile/Field.svelte";
+	import Icon from "../components/tactile/Icon.svelte";
+	import IconButton from "../components/tactile/IconButton.svelte";
+	import Pill from "../components/tactile/Pill.svelte";
+	import Section from "../components/tactile/Section.svelte";
+	import Segments from "../components/tactile/Segments.svelte";
+	import Select from "../components/tactile/Select.svelte";
+	import Slider from "../components/tactile/Slider.svelte";
+	import Swatches from "../components/tactile/Swatches.svelte";
+	import Toggle from "../components/tactile/Toggle.svelte";
 	import { t } from "../lib/i18n.svelte";
-	import { countOverrides, overridesFor, profileFor, resolved } from "../lib/levers";
+	import { countOverrides, overridesFor, resolved } from "../lib/levers";
+	import { openWindow } from "../lib/motion";
 	import { app } from "../lib/store.svelte";
-	import { tip, tipFor } from "../lib/tooltip.svelte";
+	import { tipFor } from "../lib/tooltip.svelte";
+	import type { TipKey } from "../lib/tips";
 	import type { AngleBackend, Levers, LocalePref, PrimeLevel, ProfileId, ThemePref, VideoMode } from "../lib/types";
 
 	const dto = $derived(app.dto!);
@@ -15,14 +26,20 @@
 	const over = $derived(overridesFor(dto, scope));
 	const n = $derived(countOverrides(over));
 	const mod = (...keys: (keyof Levers)[]) => keys.some((k) => over[k] !== undefined && over[k] !== null);
-	const serverIndex = $derived(scope.kind === "server" ? dto.servers.findIndex((s) => s.id === scope.id) : -1);
-	const server = $derived(serverIndex >= 0 ? dto.servers[serverIndex] : null);
-	const title = $derived(server ? `A${serverIndex + 1} ${server.name}` : t("tuning.global"));
-	// Переключатель уровня: из слота — к общим настройкам (движок, язык, тема) и обратно
-	const selIndex = $derived(dto.servers.findIndex((s) => s.id === app.selectedId));
-	const scopeOptions = $derived([
-		{ value: "global", label: t("tuning.global") },
-		...(selIndex >= 0 ? [{ value: dto.servers[selIndex].id, label: `A${selIndex + 1}` }] : [])
+	const server = $derived(scope.kind === "server" ? (dto.servers.find((s) => s.id === scope.id) ?? null) : null);
+	const title = $derived(server ? server.name : t("tuning.global"));
+	// Переключатель уровня: общие настройки (движок, вид) и правки выбранного сервера
+	const selected = $derived(dto.servers.find((s) => s.id === app.selectedId) ?? null);
+	const scopeOptions = $derived([{ value: "global", label: t("tuning.global") }, ...(selected ? [{ value: selected.id, label: selected.name }] : [])]);
+	const toggles = $derived<{ key: keyof Levers; label: string; tipKey: TipKey }[]>([
+		{ key: "adaptive", label: t("tuning.adaptive"), tipKey: "adaptive" },
+		{ key: "lightAnimation", label: t("tuning.lightAnimation"), tipKey: "lightAnimation" },
+		{ key: "visionAnimation", label: t("tuning.visionAnimation"), tipKey: "visionAnimation" },
+		{ key: "mipmap", label: t("tuning.mipmap"), tipKey: "mipmap" },
+		{ key: "pixelRatioScaling", label: t("tuning.pixelRatio"), tipKey: "pixelRatio" },
+		{ key: "uiBlur", label: t("tuning.uiBlur"), tipKey: "uiBlur" },
+		{ key: "sequencer", label: "Sequencer", tipKey: "sequencer" },
+		{ key: "fxmaster", label: "FXMaster", tipKey: "fxmaster" }
 	]);
 	const pct = (v: number) => `${Math.round(v * 100)}%`;
 
@@ -41,239 +58,218 @@
 	const themeOptions = $derived((["auto", "day", "night"] as ThemePref[]).map((v) => ({ value: v, label: t(`theme.${v}`) })));
 </script>
 
-<div class="tuning">
-	<header class="head">
-		<button class="back silk" onclick={() => app.closeScreen()}>{t("tuning.back")}</button>
-		<b>{t("tuning.title")} · {title}</b>
-		<span class="silk">
-			{t("tuning.profile")}
-			{t(`profile.${profileFor(dto, scope)}`)}
-			{#if n > 0}<span class="badge">{t("tuning.changed", { n })}</span>{/if}
-		</span>
-	</header>
-
-	<div class="body">
-		<div class="profile">
-			{#if scopeOptions.length > 1}
-				<Segmented
+<div class="tuning" use:openWindow>
+	<header class="head" data-part>
+		<IconButton label={t("tuning.back")} onclick={() => app.closeScreen()}><Icon name="back" /></IconButton>
+		<h1>{t("tuning.title")}</h1>
+		<span class="for">{title}</span>
+		{#if n > 0}<Pill>{t("tuning.changed", { n })}</Pill>{/if}
+		<span class="sp"></span>
+		{#if scopeOptions.length > 1}
+			<div class="scope">
+				<Segments
+					showLabel={false}
 					label={t("tuning.scope")}
 					tip={tipFor("scope", t("tuning.scope"))}
 					options={scopeOptions}
 					value={scope.kind === "global" ? "global" : scope.id}
 					onchange={(v) => app.openTuning(v === "global" ? { kind: "global" } : { kind: "server", id: v })}
 				/>
-			{/if}
-			<Segmented
-				label={t("tuning.profile")}
-				options={profileOptions}
-				tip={tipFor("profile", t("tuning.profile"))}
-				value={profileValue}
-				onchange={(v) => app.setScopeProfile(v === "inherit" ? null : v)}
-			/>
-		</div>
-
-		<div class="faders">
-			<Fader
-				label={t("tuning.resolution")}
-				tip={tipFor("resolution", t("tuning.resolution"))}
-				value={l.resMin}
-				min={0.4}
-				max={1}
-				step={0.05}
-				format={(v) => (l.adaptive ? `${pct(v)}–${pct(l.resMax)}` : pct(v))}
-				modified={mod("resMin", "resMax")}
-				onchange={(v) => app.setLevers(l.adaptive ? { resMin: Math.min(v, l.resMax) } : { resMin: v, resMax: v })}
-			/>
-			<Fader
-				label={t("tuning.maxFps")}
-				tip={tipFor("maxFps", t("tuning.maxFps"))}
-				value={l.maxFps}
-				min={20}
-				max={240}
-				step={1}
-				marks={[240, 144, 60]}
-				presets={[60, 144, 240]}
-				editable
-				inputLabel={t("tuning.fpsInput")}
-				format={(v) => String(v)}
-				modified={mod("maxFps")}
-				onchange={(v) => app.setLevers({ maxFps: v })}
-			/>
-			<Fader
-				label={t("tuning.unfocused")}
-				tip={tipFor("unfocused", t("tuning.unfocused"))}
-				value={l.unfocusedFps}
-				min={5}
-				max={60}
-				step={5}
-				format={(v) => String(v)}
-				modified={mod("unfocusedFps")}
-				onchange={(v) => app.setLevers({ unfocusedFps: v })}
-			/>
-			<Segmented
-				vertical
-				label={t("tuning.perfMode")}
-				tip={tipFor("perfMode", t("tuning.perfMode"))}
-				options={perfOptions}
-				value={l.perfMode}
-				modified={mod("perfMode")}
-				onchange={(v) => app.setLevers({ perfMode: v as Levers["perfMode"] })}
-			/>
-		</div>
-
-		<div class="toggles">
-			<Toggle label={t("tuning.adaptive")} tip={tipFor("adaptive", t("tuning.adaptive"))} checked={l.adaptive} modified={mod("adaptive")} onchange={(v) => app.setLevers({ adaptive: v })} />
-			<Toggle label={t("tuning.lightAnimation")} tip={tipFor("lightAnimation", t("tuning.lightAnimation"))} checked={l.lightAnimation} modified={mod("lightAnimation")} onchange={(v) => app.setLevers({ lightAnimation: v })} />
-			<Toggle label={t("tuning.visionAnimation")} tip={tipFor("visionAnimation", t("tuning.visionAnimation"))} checked={l.visionAnimation} modified={mod("visionAnimation")} onchange={(v) => app.setLevers({ visionAnimation: v })} />
-			<Toggle label={t("tuning.mipmap")} tip={tipFor("mipmap", t("tuning.mipmap"))} checked={l.mipmap} modified={mod("mipmap")} onchange={(v) => app.setLevers({ mipmap: v })} />
-			<Toggle label={t("tuning.pixelRatio")} tip={tipFor("pixelRatio", t("tuning.pixelRatio"))} checked={l.pixelRatioScaling} modified={mod("pixelRatioScaling")} onchange={(v) => app.setLevers({ pixelRatioScaling: v })} />
-			<Toggle label={t("tuning.uiBlur")} tip={tipFor("uiBlur", t("tuning.uiBlur"))} checked={l.uiBlur} modified={mod("uiBlur")} onchange={(v) => app.setLevers({ uiBlur: v })} />
-			<Toggle label="Sequencer" tip={tipFor("sequencer", "Sequencer")} checked={l.sequencer} modified={mod("sequencer")} onchange={(v) => app.setLevers({ sequencer: v })} />
-			<Toggle label="FXMaster" tip={tipFor("fxmaster", "FXMaster")} checked={l.fxmaster} modified={mod("fxmaster")} onchange={(v) => app.setLevers({ fxmaster: v })} />
-		</div>
-
-		<div class="rows">
-			<Segmented label={t("tuning.video")} tip={tipFor("video", t("tuning.video"))} options={videoOptions} value={l.video} modified={mod("video")} onchange={(v) => app.setLevers({ video: v })} />
-			<Segmented label={t("tuning.prime")} tip={tipFor("prime", "Prime Performance")} options={primeOptions} value={l.prime} modified={mod("prime")} onchange={(v) => app.setLevers({ prime: v })} />
-		</div>
-
-		{#if !server}
-			<div class="rows engine">
-				<Segmented
-					label={t("tuning.angle")}
-					tip={tipFor("angle", t("tuning.angle"))}
-					options={angleOptions}
-					value={dto.settings.engine.angle}
-					onchange={(v) => app.saveSettings({ engine: { ...dto.settings.engine, angle: v } })}
-				/>
-				<Segmented
-					label={t("tuning.cache")}
-					tip={tipFor("cache", t("tuning.cache"))}
-					options={cacheOptions}
-					value={dto.settings.engine.diskCacheMb}
-					onchange={(v) => app.saveSettings({ engine: { ...dto.settings.engine, diskCacheMb: v } })}
-				/>
-				<CacheControl />
-				<label class="extra" {@attach tip(() => tipFor("extraArgs", t("tuning.extraArgs")))}>
-					<span class="silk">{t("tuning.extraArgs")}</span>
-					<input
-						class="mono"
-						value={dto.settings.engine.extraArgs}
-						placeholder="--flag=value"
-						spellcheck="false"
-						onchange={(e) => app.saveSettings({ engine: { ...dto.settings.engine, extraArgs: e.currentTarget.value } })}
-					/>
-					<span class="mono hint">{t("tuning.extraArgsHint")}</span>
-				</label>
-				<Segmented label={t("tuning.language")} options={localeOptions} value={dto.settings.locale} onchange={(v) => app.saveSettings({ locale: v })} />
-				<Segmented label={t("tuning.theme")} options={themeOptions} value={dto.settings.theme} onchange={(v) => app.saveSettings({ theme: v })} />
 			</div>
 		{/if}
+	</header>
+
+	<div class="body" data-part>
+		<Core fill scroll pad="18px 20px 22px">
+			<div class="sections">
+				<Section title={t("tuning.sec.levers")}>
+					<Segments
+						label={t("tuning.profile")}
+						tip={tipFor("profile", t("tuning.profile"))}
+						options={profileOptions}
+						value={profileValue}
+						onchange={(v) => app.setScopeProfile(v === "inherit" ? null : (v as ProfileId))}
+					/>
+					<div class="grid">
+						<Slider
+							label={t("tuning.resolution")}
+							tip={tipFor("resolution", t("tuning.resolution"))}
+							value={l.resMin}
+							min={0.4}
+							max={1}
+							step={0.05}
+							format={(v) => (l.adaptive ? `${pct(v)}–${pct(l.resMax)}` : pct(v))}
+							modified={mod("resMin", "resMax")}
+							onchange={(v) => app.setLevers(l.adaptive ? { resMin: Math.min(v, l.resMax) } : { resMin: v, resMax: v })}
+						/>
+						<Slider
+							label={t("tuning.maxFps")}
+							tip={tipFor("maxFps", t("tuning.maxFps"))}
+							value={l.maxFps}
+							min={20}
+							max={240}
+							step={1}
+							ticks={[60, 144, 240]}
+							presets={[60, 144, 240]}
+							editable
+							inputLabel={t("tuning.fpsInput")}
+							format={(v) => String(v)}
+							modified={mod("maxFps")}
+							onchange={(v) => app.setLevers({ maxFps: v })}
+						/>
+						<Slider
+							label={t("tuning.unfocused")}
+							tip={tipFor("unfocused", t("tuning.unfocused"))}
+							value={l.unfocusedFps}
+							min={5}
+							max={60}
+							step={5}
+							format={(v) => String(v)}
+							modified={mod("unfocusedFps")}
+							onchange={(v) => app.setLevers({ unfocusedFps: v })}
+						/>
+						<Segments
+							label={t("tuning.perfMode")}
+							tip={tipFor("perfMode", t("tuning.perfMode"))}
+							options={perfOptions}
+							value={l.perfMode}
+							modified={mod("perfMode")}
+							onchange={(v) => app.setLevers({ perfMode: v as Levers["perfMode"] })}
+						/>
+					</div>
+					<div class="grid toggles">
+						{#each toggles as tg (tg.key)}
+							<Toggle
+								label={tg.label}
+								tip={tipFor(tg.tipKey, tg.label)}
+								checked={Boolean(l[tg.key])}
+								modified={mod(tg.key)}
+								onchange={(v) => app.setLevers({ [tg.key]: v } as Partial<Levers>)}
+							/>
+						{/each}
+					</div>
+					<div class="grid">
+						<Segments label={t("tuning.video")} tip={tipFor("video", t("tuning.video"))} options={videoOptions} value={l.video} modified={mod("video")} onchange={(v) => app.setLevers({ video: v as VideoMode })} />
+						<Segments label={t("tuning.prime")} tip={tipFor("prime", "Prime Performance")} options={primeOptions} value={l.prime} modified={mod("prime")} onchange={(v) => app.setLevers({ prime: v as PrimeLevel })} />
+					</div>
+				</Section>
+
+				{#if !server}
+					<Section title={t("tuning.sec.engine")}>
+						<div class="grid">
+							<Select
+								label={t("tuning.angle")}
+								tip={tipFor("angle", t("tuning.angle"))}
+								options={angleOptions}
+								value={dto.settings.engine.angle}
+								onchange={(v) => app.saveSettings({ engine: { ...dto.settings.engine, angle: v as AngleBackend } })}
+							/>
+							<Segments
+								label={t("tuning.cache")}
+								tip={tipFor("cache", t("tuning.cache"))}
+								options={cacheOptions}
+								value={dto.settings.engine.diskCacheMb}
+								onchange={(v) => app.saveSettings({ engine: { ...dto.settings.engine, diskCacheMb: v } })}
+							/>
+						</div>
+						<CacheControl />
+						<Field
+							label={t("tuning.extraArgs")}
+							mono
+							value={dto.settings.engine.extraArgs}
+							placeholder="--flag=value"
+							spellcheck={false}
+							hint={t("tuning.extraArgsHint")}
+							onchange={(e) => app.saveSettings({ engine: { ...dto.settings.engine, extraArgs: e.currentTarget.value } })}
+						/>
+					</Section>
+
+					<Section title={t("tuning.sec.look")}>
+						<div class="grid">
+							<Segments label={t("tuning.theme")} options={themeOptions} value={dto.settings.theme} onchange={(v) => app.saveSettings({ theme: v as ThemePref })} />
+							<Segments label={t("tuning.language")} options={localeOptions} value={dto.settings.locale} onchange={(v) => app.saveSettings({ locale: v as LocalePref })} />
+						</div>
+						<Swatches label={t("tuning.accent")} value={dto.settings.accent} onchange={(v) => app.saveSettings({ accent: v })} />
+					</Section>
+				{/if}
+			</div>
+		</Core>
 	</div>
 
-	<footer class="foot mono">
+	<footer class="foot" data-part>
 		<span>{t("tuning.engineLine", { angle: dto.settings.engine.angle.toUpperCase(), cache: dto.settings.engine.diskCacheMb / 1024 })}</span>
-		<span>
-			{t("tuning.modifiedLegend")} ·
-			<button class="reset" onclick={() => app.resetOverrides()}>{t("tuning.reset")}</button>
-		</span>
+		<span class="sp"></span>
+		<span class="legend"><i aria-hidden="true"></i>{t("tuning.modifiedLegend")}</span>
+		<Button disabled={n === 0} onclick={() => app.resetOverrides()}>{t("tuning.reset")}</Button>
 	</footer>
 </div>
 
 <style>
 	.tuning {
+		height: 100%;
 		display: grid;
 		grid-template-rows: auto minmax(0, 1fr) auto;
-		gap: 2px;
-		height: 100%;
+		gap: 10px;
+		padding: 2px 14px 14px;
+	}
+	.head {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-width: 0;
+	}
+	h1 {
+		font: 700 18px/1.1 var(--tc-font-display);
+		letter-spacing: -0.02em;
+	}
+	.for {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		font: 500 12.5px/1 var(--tc-font-mono);
+		color: var(--tc-muted);
+	}
+	.sp {
+		flex: 1;
+	}
+	.scope {
+		width: 300px;
+		flex: none;
+	}
+	.body {
 		min-height: 0;
 	}
-	.head,
+	.sections {
+		display: grid;
+		gap: 26px;
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 16px 24px;
+		align-items: start;
+	}
+	.toggles {
+		gap: 0 24px;
+	}
 	.foot {
 		display: flex;
 		align-items: center;
-		gap: 16px;
-		padding: 10px 18px;
-		background: var(--grain), var(--face);
-		box-shadow: var(--bevel);
+		gap: 12px;
+		font: 500 11px/1 var(--tc-font-mono);
+		color: var(--tc-muted);
 	}
-	.head b {
-		font-weight: 800;
-		letter-spacing: 0.08em;
-		margin-right: auto;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	.back {
-		padding: 6px 10px;
-		background: var(--face-2);
-		box-shadow: var(--lift);
-	}
-	.back:active {
-		box-shadow: var(--recess);
-	}
-	.back:hover,
-	.reset:hover {
-		color: var(--signal-text);
-	}
-	.badge {
-		margin-left: 6px;
-		padding: 1px 6px;
-		color: var(--signal-ink);
-		background: var(--signal);
-		box-shadow: var(--glow-signal);
-		text-shadow: none;
-	}
-	.body {
-		display: grid;
-		gap: 2px;
-		overflow-y: auto;
-		min-height: 0;
-	}
-	.profile,
-	.toggles,
-	.rows {
-		background: var(--grain), var(--face);
-		box-shadow: var(--bevel);
-		padding: 12px 18px;
-	}
-	.profile {
-		display: flex;
-		gap: 28px;
-	}
-	.faders {
-		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: 2px;
-	}
-	.toggles {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 6px 28px;
-	}
-	.rows {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 14px 28px;
-	}
-	.extra {
-		grid-column: 1 / -1;
-		display: grid;
+	.legend {
+		display: inline-flex;
+		align-items: center;
 		gap: 6px;
 	}
-	.extra input {
-		height: 34px;
-		padding: 0 10px;
-		background: var(--well);
-		border: 1px solid transparent;
-		box-shadow: var(--recess);
-	}
-	.hint {
-		color: var(--ink-2);
-	}
-	.foot {
-		justify-content: space-between;
-		color: var(--ink-2);
+	.legend i {
+		width: 6px;
+		height: 6px;
+		border-radius: 99px;
+		background: var(--tc-accent);
+		box-shadow: 0 0 6px var(--tc-glow);
 	}
 </style>

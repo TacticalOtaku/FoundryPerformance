@@ -50,8 +50,6 @@ interface BenchResult extends FpsSummary {
 interface ServerStats {
 	lastSession: FpsSummary | null;
 	lastBench: BenchResult | null;
-	/** Средний FPS последних отчётов сеанса — мини-график на ЖК. */
-	history?: number[];
 }
 
 interface Notice {

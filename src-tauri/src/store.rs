@@ -162,6 +162,19 @@ mod tests {
     }
 
     #[test]
+    fn stats_from_older_versions_still_load() {
+        let (d, s) = tmp();
+        fs::write(
+            d.path().join("stats.json"),
+            r#"{"schema":1,"servers":{"a":{"lastSession":{"avg":50.0,"low1":30.0,"profile":"balance","at":7},"lastBench":null,"history":[41.0,50.0]}}}"#,
+        )
+        .unwrap();
+        let (stats, notice) = s.load_stats();
+        assert!(notice.is_none());
+        assert_eq!(stats["a"].last_session.unwrap().at, 7);
+    }
+
+    #[test]
     fn servers_and_stats_roundtrip() {
         let (_d, s) = tmp();
         let srv = vec![Server { id: "a".into(), name: "A".into(), url: "https://a".into(), profile: None, overrides: Overrides::default(), game_url: None }];

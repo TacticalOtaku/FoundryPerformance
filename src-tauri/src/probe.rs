@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use std::time::Duration;
-use url::Url;
+use url::{Host, Url};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,10 +24,11 @@ pub fn normalize_url(input: &str) -> Result<Url, String> {
     }
     let with_scheme = if s.contains("://") {
         s.to_string()
-    } else if s.starts_with("localhost") || s.starts_with("127.") || s.starts_with("192.168.") || s.starts_with("10.") {
-        format!("http://{s}")
     } else {
-        format!("https://{s}")
+        // Голый IP и localhost почти всегда без TLS (локальная сеть, Docker, Tailscale)
+        let plain = Url::parse(&format!("http://{s}"))
+            .is_ok_and(|u| matches!(u.host(), Some(Host::Ipv4(_) | Host::Ipv6(_))) || u.host_str() == Some("localhost"));
+        format!("{}://{s}", if plain { "http" } else { "https" })
     };
     let mut url = Url::parse(&with_scheme).map_err(|_| "err.urlInvalid".to_string())?;
     if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
@@ -138,6 +139,12 @@ mod tests {
         assert_eq!(normalize_url("  http://192.168.1.40:30000/game ").unwrap().as_str(), "http://192.168.1.40:30000/");
         assert_eq!(normalize_url("https://host/foundry/join").unwrap().as_str(), "https://host/foundry/");
         assert_eq!(normalize_url("localhost:30000").unwrap().as_str(), "http://localhost:30000/");
+        // голый IP без схемы — http: Docker, Tailscale, любая локальная сеть
+        assert_eq!(normalize_url("172.17.0.2:30000").unwrap().as_str(), "http://172.17.0.2:30000/");
+        assert_eq!(normalize_url("100.101.1.2:30000/game").unwrap().as_str(), "http://100.101.1.2:30000/");
+        assert_eq!(normalize_url("192.168.1.40:443").unwrap().as_str(), "http://192.168.1.40:443/");
+        // домен, похожий на IP, остаётся на https
+        assert_eq!(normalize_url("10.example.com").unwrap().as_str(), "https://10.example.com/");
     }
 
     #[test]

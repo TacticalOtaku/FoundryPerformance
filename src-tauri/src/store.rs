@@ -44,7 +44,11 @@ impl Store {
         let text = match fs::read_to_string(&path) {
             Ok(t) => t,
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
-            Err(_) => return Err(Notice::new("notice.storeCorrupted").with("file", name)),
+            Err(_) => {
+                // Не UTF-8 или занят: убираем в .bak, иначе первое сохранение затрёт его пустым
+                let _ = fs::rename(&path, self.dir.join(format!("{name}.bak")));
+                return Err(Notice::new("notice.storeCorrupted").with("file", name));
+            }
         };
         match serde_json::from_str(&text) {
             Ok(v) => Ok(Some(v)),
@@ -143,6 +147,17 @@ mod tests {
         let n = notice.unwrap();
         assert_eq!(n.key, "notice.storeCorrupted");
         assert_eq!(n.params["file"], "servers.json");
+        assert!(d.path().join("servers.json.bak").exists());
+    }
+
+    #[test]
+    fn unreadable_file_is_backed_up_before_it_can_be_overwritten() {
+        let (d, s) = tmp();
+        // «Проклятие» в cp1251 — так сохраняет Блокнот в ANSI
+        fs::write(d.path().join("servers.json"), b"{\"n\":\"\xcf\xf0\xee\xea\xeb\xff\xf2\xe8\xe5\"}").unwrap();
+        let (servers, notice) = s.load_servers();
+        assert!(servers.is_empty());
+        assert!(notice.is_some());
         assert!(d.path().join("servers.json.bak").exists());
     }
 

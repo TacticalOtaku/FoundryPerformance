@@ -1,7 +1,7 @@
 import { g } from "./foundry";
 import { collectVideos } from "./levers/video";
 
-export const AGENT_VERSION = "0.2.3";
+export const AGENT_VERSION = "0.2.4";
 
 function plain(v: unknown): unknown {
 	try {

@@ -31,6 +31,7 @@ windows = { version = "0.62", features = [
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }
+tauri-plugin-single-instance = "2"
 
 [dev-dependencies]
 tempfile = "3"

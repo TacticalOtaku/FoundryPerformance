@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 use windows::core::PWSTR;
 use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
@@ -41,6 +42,15 @@ pub fn running_from(dir: &Path) -> Vec<u32> {
     found
 }
 
+/// После автообновления прежний процесс живёт ещё ~300 мс: ждём его, иначе защита от
+/// второго запуска примет новую версию за дубль и закроет её.
+pub fn wait_until_alone(dir: &Path, timeout: Duration) {
+    let until = Instant::now() + timeout;
+    while !running_from(dir).is_empty() && Instant::now() < until {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -51,6 +61,18 @@ mod tests {
         assert!(is_inside(Path::new(r"c:\programs\foundryperformance\FoundryPerformance.exe"), dir));
         assert!(!is_inside(Path::new(r"C:\Programs\FoundryPerformanceX\a.exe"), dir));
         assert!(!is_inside(Path::new(r"C:\Programs\Foundry\a.exe"), Path::new(r"C:\Programs\Foundry\sub")));
+    }
+
+    #[test]
+    fn waits_until_the_other_process_from_the_folder_exits() {
+        let d = tempfile::tempdir().unwrap();
+        let exe = d.path().join("old.exe");
+        std::fs::copy(Path::new(&std::env::var_os("WINDIR").unwrap()).join(r"System32\PING.EXE"), &exe).unwrap();
+        // ~1 с: один промежуток между двумя пингами
+        let mut child = std::process::Command::new(&exe).args(["-n", "2", "127.0.0.1"]).stdout(std::process::Stdio::null()).spawn().unwrap();
+        wait_until_alone(d.path(), Duration::from_secs(10));
+        assert!(child.try_wait().unwrap().is_some(), "returned while the old process was still running");
+        assert!(running_from(d.path()).is_empty());
     }
 
     #[test]

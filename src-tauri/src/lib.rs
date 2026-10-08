@@ -31,6 +31,9 @@ pub fn run() {
     let exe_dir = exe.as_deref().and_then(std::path::Path::parent).map(std::path::Path::to_path_buf).unwrap_or_default();
     let mode = installer::mode::detect(&args, &exe_dir, cfg!(debug_assertions));
     if mode == Mode::Launcher {
+        if args.iter().any(|a| a == installer::commands::UPDATED_FLAG) {
+            installer::procs::wait_until_alone(&exe_dir, std::time::Duration::from_secs(5));
+        }
         if let Some(e) = &exe {
             installer::selfreplace::cleanup(e);
         }
@@ -43,7 +46,17 @@ pub fn run() {
         }
     }
 
-    let app = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    // Два лаунчера держат в памяти свои копии серверов и настроек и затирают файлы друг друга.
+    // Установщик и удаление сюда не входят: при запущенном лаунчере они сами скажут «закройте программу».
+    if mode == Mode::Launcher {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let app = app.clone();
+            // async: создание окна прямо из обработчика может взаимно заблокироваться на Windows
+            tauri::async_runtime::spawn(async move { second_launch(&app, argv) });
+        }));
+    }
+    let app = builder
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             app.manage(installer::commands::ModeState { mode });
@@ -154,4 +167,28 @@ pub fn run() {
             api.prevent_exit();
         }
     });
+}
+
+/// Повторный запуск: показываем то, что уже открыто, или запускаем игру по `--open`.
+fn second_launch(app: &tauri::AppHandle, argv: Vec<String>) {
+    let focus = |label: &str| {
+        app.get_webview_window(label).map(|w| {
+            let _ = w.unminimize();
+            let _ = w.show();
+            let _ = w.set_focus();
+        })
+    };
+    // Сплэш сам откроет лаунчер или игру, когда закончит
+    if focus(windows::SPLASH).is_some() {
+        return;
+    }
+    if let Some((url, mode)) = commands::parse_cli(argv.into_iter().skip(1)) {
+        if let Err(e) = commands::launch_adhoc(app, &app.state::<AppState>(), &url, mode) {
+            eprintln!("[foundry-performance] launch from second start failed: {e}");
+        }
+    } else if focus(windows::GAME).is_none() {
+        if let Err(e) = windows::open_launcher(app) {
+            eprintln!("[foundry-performance] open_launcher on second start failed: {e}");
+        }
+    }
 }

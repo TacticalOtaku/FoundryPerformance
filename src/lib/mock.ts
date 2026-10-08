@@ -90,7 +90,7 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 			return {
 				settings,
 				servers,
-				stats: { a1: { lastSession: { avg: 52.4, low1: 31, profile: "balance", at: 0 }, lastBench: null, history: [38, 44, 41, 55, 49, 58, 52] } },
+				stats: { a1: { lastSession: { avg: 52.4, low1: 31, profile: "balance", at: 0 }, lastBench: null } },
 				presets,
 				notice: null,
 				locale: "ru",

@@ -73,9 +73,6 @@ pub fn apply(
         Report::Session { avg, low1, profile } => {
             let s = stats.entry(server_id.to_string()).or_default();
             s.last_session = Some(FpsSummary { avg, low1, profile, at: now });
-            s.history.push(avg);
-            let excess = s.history.len().saturating_sub(HISTORY_LEN);
-            s.history.drain(..excess);
             fx.stats = true;
         }
         Report::Bench { avg, low1, min, profile } => {
@@ -144,16 +141,6 @@ mod tests {
         assert_eq!(stats["a"].last_session.unwrap().at, 7);
         apply(&Report::Bench { avg: 40.0, low1: 20.0, min: 10.0, profile: ProfileId::Potato }, "a", 8, &mut stats, &mut servers, &mut settings);
         assert_eq!(stats["a"].last_bench.unwrap().min, 10.0);
-    }
-
-    #[test]
-    fn session_history_keeps_the_last_eight_readings() {
-        let (mut stats, mut servers, mut settings) = (BTreeMap::new(), vec![srv("a")], Settings::default());
-        for i in 0..10 {
-            let r = Report::Session { avg: i as f32, low1: 1.0, profile: ProfileId::Balance };
-            apply(&r, "a", i, &mut stats, &mut servers, &mut settings);
-        }
-        assert_eq!(stats["a"].history, vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
     }
 
     #[test]

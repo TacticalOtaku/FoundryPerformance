@@ -9,3 +9,7 @@ app-icon.png
 # локальные артефакты инструментов дизайна
 .superpowers/
 .impeccable/
+
+# правила для ИИ-агентов, не публикуются
+CLAUDE.md
+CLAUDE.local.md

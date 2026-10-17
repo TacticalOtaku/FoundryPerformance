@@ -18,7 +18,7 @@ export function mockOnProgress(cb: (p: InstallProgress) => void): () => void {
 	return () => progressListeners.delete(cb);
 }
 
-/** Превью экранов установки: `?mode=install`, `?mode=install&state=upgrade|current`, `?mode=uninstall`. */
+/** Превью экранов установки: `?mode=install`, `?mode=install&state=upgrade|current`, `?mode=install&fail=copy`, `?mode=uninstall`. */
 function mockMode(): ModeDto {
 	const q = new URLSearchParams(location.search);
 	const mode = (q.get("mode") ?? "launcher") as ModeDto["mode"];
@@ -137,6 +137,8 @@ export async function mockInvoke(cmd: string, args: Record<string, unknown>): Pr
 			for (let i = 0; i < steps.length; i++) {
 				progressListeners.forEach((cb) => cb({ step: steps[i], pct: pcts[i] }));
 				await delay(450);
+				// `&fail=copy|shortcuts|register` — превью ошибки на шаге
+				if (new URLSearchParams(location.search).get("fail") === steps[i]) throw `install.err.${steps[i]}`;
 			}
 			return null;
 		}

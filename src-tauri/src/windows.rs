@@ -207,10 +207,14 @@ pub struct GameLaunch {
     pub data_dir: PathBuf,
 }
 
+/// Окно игры уже открыто — поднимает его и возвращает `true`.
+pub fn focus_game(app: &AppHandle) -> bool {
+    app.get_webview_window(GAME).map(|w| w.set_focus()).is_some()
+}
+
 /// Отдельная папка данных = отдельный процесс браузера WebView2 со своими флагами.
 pub fn open_game(app: &AppHandle, l: GameLaunch) -> tauri::Result<()> {
-    if let Some(w) = app.get_webview_window(GAME) {
-        w.set_focus()?;
+    if focus_game(app) {
         return Ok(());
     }
     let init = l.init_script.map(Arc::new);

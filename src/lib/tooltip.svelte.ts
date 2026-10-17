@@ -10,13 +10,15 @@ interface Shown {
 	data: TipData;
 	rect: DOMRect;
 	owner: HTMLElement;
+	/** Кому aria-describedby: контрол в фокусе, а не обёртка с подсказкой. */
+	described: HTMLElement;
 }
 
 class TipState {
 	current = $state<Shown | null>(null);
 
 	hide(): void {
-		this.current?.owner.removeAttribute("aria-describedby");
+		this.current?.described.removeAttribute("aria-describedby");
 		this.current = null;
 	}
 }
@@ -45,14 +47,14 @@ const sameTip = (a: TipData, b: TipData) =>
  */
 export function tip(get: () => TipData | undefined): Attachment<HTMLElement> {
 	return (node) => {
-		const show = (delay: number) => {
+		const show = (delay: number, described: HTMLElement = node) => {
 			clearTimeout(timer);
 			timer = setTimeout(() => {
 				const data = get();
 				if (!data) return;
 				tipState.hide();
-				tipState.current = { data, rect: node.getBoundingClientRect(), owner: node };
-				node.setAttribute("aria-describedby", TIP_ID);
+				tipState.current = { data, rect: node.getBoundingClientRect(), owner: node, described };
+				described.setAttribute("aria-describedby", TIP_ID);
 			}, delay);
 		};
 		const hide = () => {
@@ -67,7 +69,8 @@ export function tip(get: () => TipData | undefined): Attachment<HTMLElement> {
 		};
 		const onEnter = () => show(DELAY_MS);
 		const onFocus = (e: FocusEvent) => {
-			if ((e.target as HTMLElement).matches(":focus-visible")) show(0);
+			const el = e.target as HTMLElement;
+			if (el.matches(":focus-visible")) show(0, el);
 		};
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === "Escape") hide();

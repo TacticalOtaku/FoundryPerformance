@@ -37,7 +37,11 @@ const DYNAMIC = [
 
 describe("i18n usage", () => {
 	it("every literal t() key exists", () => {
-		const used = [...code.matchAll(/\bt\(\s*"([\w.]+)"/g)].map((m) => m[1]);
+		const literal = [...code.matchAll(/\bt\(\s*"([\w.]+)"/g)].map((m) => m[1]);
+		// t(cond ? "a.x" : "a.y") — обе ветки тернарника
+		const ternary = [...code.matchAll(/\bt\([^)]*?\?\s*"([\w.]+)"\s*:\s*"([\w.]+)"\s*\)/g)].flatMap((m) => [m[1], m[2]]);
+		const used = [...literal, ...ternary];
+		expect(ternary).toContain("main.lastBench");
 		expect(used.filter((k) => !keys.includes(k))).toEqual([]);
 	});
 

@@ -129,7 +129,8 @@
 							<Toggle label={t("install.desktop")} checked={desktop} disabled={phase === "running"} onchange={(v) => (desktop = v)} />
 							<Toggle label={t("install.launch")} checked={launch} disabled={phase === "running"} onchange={(v) => (launch = v)} />
 						</div>
-						{#if error}<p class="err" role="alert">{error}</p>{/if}
+						<!-- упало до первого шага — показать здесь; иначе ошибка стоит под своим шагом -->
+						{#if error && !step}<p class="err" role="alert">{error}</p>{/if}
 					</div>
 					<div class="grow"></div>
 					{#if info.state === "current" && phase !== "running"}
@@ -151,6 +152,7 @@
 							<li class={st}>
 								<span class="dot" aria-hidden="true"></span>
 								<span>{t(`install.step.${s}`)}</span>
+								{#if st === "fail" && error}<p class="err" role="alert">{error}</p>{/if}
 							</li>
 						{/each}
 					</ol>
@@ -225,8 +227,13 @@
 	}
 	.steps li {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 10px;
+	}
+	.steps .err {
+		flex-basis: 100%;
+		padding-left: 18px;
 	}
 	.dot {
 		width: 8px;

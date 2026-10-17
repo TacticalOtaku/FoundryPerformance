@@ -30,7 +30,8 @@
 	// Пока ручку тянут, значение только показывается; сохраняется на `change`.
 	let live = $derived(value);
 	const frac = (v: number) => (v - min) / (max - min);
-	const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v / step) * step));
+	// Шаги отсчитываются от min, как у самого range; toFixed срезает хвост вида 0.30000000000000004
+	const clamp = (v: number) => Math.min(max, Math.max(min, +(min + Math.round((v - min) / step) * step).toFixed(6)));
 
 	function commitTyped(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;

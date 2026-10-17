@@ -74,7 +74,12 @@ pub fn parse_cli(args: impl Iterator<Item = String>) -> Option<(String, LaunchMo
     url.map(|u| (u, mode))
 }
 
-fn start_game(app: &AppHandle, state: &AppState, server: &Server, mode: LaunchMode) -> Result<(), String> {
+/// `false` — игра уже открыта: окно поднято, сессия и `last_server` не трогаются,
+/// иначе отчёты идущей игры проверялись бы по адресам другого сервера.
+fn start_game(app: &AppHandle, state: &AppState, server: &Server, mode: LaunchMode) -> Result<bool, String> {
+    if windows::focus_game(app) {
+        return Ok(false);
+    }
     let launch = {
         let mut d = state.data.lock().expect("state poisoned");
         d.current_server = Some(server.id.clone());
@@ -82,7 +87,7 @@ fn start_game(app: &AppHandle, state: &AppState, server: &Server, mode: LaunchMo
         d.session_origins = telemetry::session_origins(server);
         build_launch(&d.settings, server, mode)?
     };
-    windows::open_game(app, launch).map_err(|e| {
+    windows::open_game(app, launch).map(|_| true).map_err(|e| {
         eprintln!("[foundry-performance] open_game failed: {e}");
         "notice.launchFailed".to_string()
     })
@@ -91,7 +96,7 @@ fn start_game(app: &AppHandle, state: &AppState, server: &Server, mode: LaunchMo
 /// Запуск из командной строки: `--open <url> [--safe|--baseline]`.
 pub fn launch_adhoc(app: &AppHandle, state: &AppState, url: &str, mode: LaunchMode) -> Result<(), String> {
     let server = Server { id: "adhoc".into(), name: url.to_string(), url: url.to_string(), profile: None, overrides: Overrides::default(), game_url: None };
-    start_game(app, state, &server, mode)
+    start_game(app, state, &server, mode).map(|_| ())
 }
 
 #[tauri::command]
@@ -173,7 +178,9 @@ pub async fn launch(app: AppHandle, state: State<'_, AppState>, server_id: Strin
         d.servers.iter().find(|s| s.id == server_id).cloned().ok_or_else(|| "err.serverMissing".to_string())?
     };
     let mode = if safe_mode { LaunchMode::Safe } else { LaunchMode::Normal };
-    start_game(&app, &state, &server, mode)?;
+    if !start_game(&app, &state, &server, mode)? {
+        return Ok(());
+    }
     // При следующем открытии лаунчер предложит продолжить с этого сервера
     let mut d = state.data.lock().expect("state poisoned");
     if d.settings.last_server.as_deref() != Some(server.id.as_str()) {

@@ -7,6 +7,17 @@
 
 	/** `start` — после названия (версия, обновление); `end` — перед кнопками окна (видеокарта, «Настройка»). */
 	let { start, end }: { start?: Snippet; end?: Snippet } = $props();
+
+	let maximized = $state(false);
+	$effect(() => {
+		let off: (() => void) | undefined;
+		let gone = false;
+		windowControls.onMaximized((on) => (maximized = on)).then((u) => (gone ? u() : (off = u)));
+		return () => {
+			gone = true;
+			off?.();
+		};
+	});
 </script>
 
 <header class="bar" data-tauri-drag-region>
@@ -17,7 +28,7 @@
 	{#if end}{@render end()}{/if}
 	<span class="wb">
 		<IconButton label={t("window.minimize")} size={30} onclick={() => windowControls.minimize()}><Icon name="minimize" /></IconButton>
-		<IconButton label={t("window.maximize")} size={30} onclick={() => windowControls.toggleMaximize()}><Icon name="maximize" /></IconButton>
+		<IconButton label={t(maximized ? "window.restore" : "window.maximize")} size={30} onclick={() => windowControls.toggleMaximize()}><Icon name="maximize" /></IconButton>
 		<IconButton label={t("window.close")} size={30} danger onclick={() => windowControls.close()}><Icon name="close" /></IconButton>
 	</span>
 </header>

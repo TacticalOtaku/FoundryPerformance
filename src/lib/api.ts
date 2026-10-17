@@ -94,6 +94,13 @@ async function currentWindow() {
 export const windowControls = {
 	minimize: async () => void (await currentWindow())?.minimize(),
 	toggleMaximize: async () => void (await currentWindow())?.toggleMaximize(),
+	/** Сообщает, развёрнуто ли окно, сейчас и после каждого изменения размера; возвращает отписку. */
+	onMaximized: async (cb: (on: boolean) => void): Promise<() => void> => {
+		const w = await currentWindow();
+		if (!w) return () => {};
+		cb(await w.isMaximized());
+		return w.onResized(async () => cb(await w.isMaximized()));
+	},
 	close: async () => void (await currentWindow())?.close(),
 	destroy: async () => void (await currentWindow())?.destroy()
 };

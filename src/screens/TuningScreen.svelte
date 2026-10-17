@@ -31,7 +31,11 @@
 	// Переключатель уровня: общие настройки (движок, вид) и правки выбранного сервера
 	const selected = $derived(dto.servers.find((s) => s.id === app.selectedId) ?? null);
 	const scopeServer = $derived(server ?? selected);
-	const scopeOptions = $derived([{ value: "global", label: t("tuning.global") }, ...(scopeServer ? [{ value: scopeServer.id, label: scopeServer.name }] : [])]);
+	// Без выбранного сервера второй сегмент виден, но недоступен — уровень всё равно понятен
+	const scopeOptions = $derived([
+		{ value: "global", label: t("tuning.global") },
+		scopeServer ? { value: scopeServer.id, label: scopeServer.name } : { value: "", label: t("tuning.scopeServer"), disabled: true }
+	]);
 	const toggles = $derived<{ key: keyof Levers; label: string; tipKey: TipKey }[]>([
 		{ key: "adaptive", label: t("tuning.adaptive"), tipKey: "adaptive" },
 		{ key: "lightAnimation", label: t("tuning.lightAnimation"), tipKey: "lightAnimation" },
@@ -66,18 +70,16 @@
 		<span class="for">{title}</span>
 		{#if n > 0}<Pill>{t("tuning.changed", { n })}</Pill>{/if}
 		<span class="sp"></span>
-		{#if scopeOptions.length > 1}
-			<div class="scope">
-				<Segments
-					showLabel={false}
-					label={t("tuning.scope")}
-					tip={tipFor("scope", t("tuning.scope"))}
-					options={scopeOptions}
-					value={scope.kind === "global" ? "global" : scope.id}
-					onchange={(v) => app.openTuning(v === "global" ? { kind: "global" } : { kind: "server", id: v })}
-				/>
-			</div>
-		{/if}
+		<div class="scope">
+			<Segments
+				showLabel={false}
+				label={t("tuning.scope")}
+				tip={tipFor("scope", t("tuning.scope"))}
+				options={scopeOptions}
+				value={scope.kind === "global" ? "global" : scope.id}
+				onchange={(v) => app.openTuning(v === "global" ? { kind: "global" } : { kind: "server", id: v })}
+			/>
+		</div>
 	</header>
 
 	<div class="body" data-part>

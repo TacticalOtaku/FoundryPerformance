@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { moduleValues } from "./modules";
 import type { Levers } from "./types";
 
-const base = { sequencer: false, fxmaster: false, prime: "aggressive" } as Levers;
+const base = { sequencer: false, fxmaster: false } as Levers;
 
 describe("moduleValues", () => {
 	it("includes settings only for active modules", () => {

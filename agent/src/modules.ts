@@ -1,4 +1,4 @@
-import type { Levers, PrimeLevel } from "./types";
+import type { Levers } from "./types";
 
 interface ModuleSetting {
 	module: string;
@@ -12,18 +12,8 @@ const MODULE_SETTINGS: ModuleSetting[] = [
 	{ module: "fxmaster", key: "fxmaster.enable", value: (l) => l.fxmaster }
 ];
 
-const PRIME_MODULE = "fvtt-perf-optim";
-
-/** Значения клиентских настроек Prime Performance по уровню. Заполняется в Task 11 по дампу. */
-const PRIME_SETTINGS: Record<PrimeLevel, Record<string, unknown>> = {
-	soft: {},
-	medium: {},
-	aggressive: {}
-};
-
 export function moduleValues(isActive: (id: string) => boolean, l: Levers): Record<string, unknown> {
 	const out: Record<string, unknown> = {};
 	for (const m of MODULE_SETTINGS) if (isActive(m.module)) out[m.key] = m.value(l);
-	if (isActive(PRIME_MODULE)) Object.assign(out, PRIME_SETTINGS[l.prime]);
 	return out;
 }

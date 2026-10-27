@@ -17,7 +17,6 @@ export const TIP_IMPACT = {
 	sequencer: { fps: 3, look: 3 },
 	fxmaster: { fps: 3, look: 3 },
 	video: { fps: 3, look: 2 },
-	prime: { fps: 3, look: 1 },
 	angle: {},
 	cache: {},
 	cacheClear: {},

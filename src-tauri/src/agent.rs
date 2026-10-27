@@ -12,6 +12,8 @@ pub struct Boot<'a> {
     pub presets: &'a BTreeMap<ProfileId, Levers>,
     pub locale: &'a str,
     pub measure_only: bool,
+    /// Безопасный режим: агент только убирает свои core-настройки из localStorage.
+    pub safe: bool,
 }
 
 pub fn script(boot: &Boot) -> String {
@@ -27,7 +29,7 @@ mod tests {
     #[test]
     fn script_embeds_boot_before_agent() {
         let presets = profile::presets();
-        let s = script(&Boot { server_id: "a1", profile_id: ProfileId::Balance, presets: &presets, locale: "ru", measure_only: false });
+        let s = script(&Boot { server_id: "a1", profile_id: ProfileId::Balance, presets: &presets, locale: "ru", measure_only: false, safe: false });
         assert!(s.starts_with("window.__FP_BOOT__ = {"));
         assert!(s.contains("\"profileId\":\"balance\""));
         assert!(s.contains("\"measureOnly\":false"));

@@ -18,14 +18,6 @@ pub enum VideoMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum PrimeLevel {
-    Soft,
-    Medium,
-    Aggressive,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AngleBackend {
     #[serde(rename = "d3d11")]
     D3d11,
@@ -75,7 +67,6 @@ pub struct Levers {
     pub sequencer: bool,
     pub fxmaster: bool,
     pub unfocused_fps: u32,
-    pub prime: PrimeLevel,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -109,8 +100,6 @@ pub struct Overrides {
     pub fxmaster: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unfocused_fps: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub prime: Option<PrimeLevel>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

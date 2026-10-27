@@ -18,7 +18,6 @@ pub fn preset(id: ProfileId) -> Levers {
             sequencer: true,
             fxmaster: true,
             unfocused_fps: 60,
-            prime: PrimeLevel::Soft,
         },
         ProfileId::Balance => Levers {
             perf_mode: 1,
@@ -35,7 +34,6 @@ pub fn preset(id: ProfileId) -> Levers {
             sequencer: true,
             fxmaster: true,
             unfocused_fps: 15,
-            prime: PrimeLevel::Medium,
         },
         ProfileId::Potato => Levers {
             perf_mode: 0,
@@ -52,7 +50,6 @@ pub fn preset(id: ProfileId) -> Levers {
             sequencer: false,
             fxmaster: false,
             unfocused_fps: 10,
-            prime: PrimeLevel::Aggressive,
         },
     }
 }
@@ -91,7 +88,6 @@ pub fn apply(mut b: Levers, o: &Overrides) -> Levers {
     if let Some(v) = o.sequencer { b.sequencer = v; }
     if let Some(v) = o.fxmaster { b.fxmaster = v; }
     if let Some(v) = o.unfocused_fps { b.unfocused_fps = v; }
-    if let Some(v) = o.prime { b.prime = v; }
     sanitize(b)
 }
 

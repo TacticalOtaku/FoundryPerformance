@@ -34,11 +34,6 @@ export class FrameStats {
 		for (const x of r) sum += x;
 		return sum / r.length;
 	}
-
-	clear(): void {
-		this.next = 0;
-		this.count = 0;
-	}
 }
 
 /** FPS по самым медленным 1% кадров. */

@@ -18,7 +18,7 @@
 	import { app } from "../lib/store.svelte";
 	import { tipFor } from "../lib/tooltip.svelte";
 	import type { TipKey } from "../lib/tips";
-	import type { AngleBackend, Levers, LocalePref, PrimeLevel, ProfileId, ThemePref, VideoMode } from "../lib/types";
+	import type { AngleBackend, Levers, LocalePref, ProfileId, ThemePref, VideoMode } from "../lib/types";
 
 	const dto = $derived(app.dto!);
 	const scope = $derived(app.scope);
@@ -55,7 +55,6 @@
 	const profileValue = $derived<ProfileId | "inherit">(server ? (server.profile ?? "inherit") : dto.settings.profile);
 
 	const videoOptions = $derived((["play", "pauseUnfocused", "static"] as VideoMode[]).map((v) => ({ value: v, label: t(`video.${v}`) })));
-	const primeOptions = $derived((["soft", "medium", "aggressive"] as PrimeLevel[]).map((v) => ({ value: v, label: t(`prime.${v}`) })));
 	const perfOptions = [3, 2, 1, 0].map((v) => ({ value: v, label: ["LOW", "MED", "HIGH", "MAX"][v] }));
 	const angleOptions = (["d3d11", "d3d11on12", "gl", "vulkan"] as AngleBackend[]).map((v) => ({ value: v, label: v.toUpperCase() }));
 	const cacheOptions = $derived([1024, 2048, 4096].map((v) => ({ value: v, label: `${v / 1024} ${t("unit.gb")}` })));
@@ -153,7 +152,6 @@
 					</div>
 					<div class="grid">
 						<Segments label={t("tuning.video")} tip={tipFor("video", t("tuning.video"))} options={videoOptions} value={l.video} modified={mod("video")} onchange={(v) => app.setLevers({ video: v as VideoMode })} />
-						<Segments label={t("tuning.prime")} tip={tipFor("prime", "Prime Performance")} options={primeOptions} value={l.prime} modified={mod("prime")} onchange={(v) => app.setLevers({ prime: v as PrimeLevel })} />
 					</div>
 				</Section>
 

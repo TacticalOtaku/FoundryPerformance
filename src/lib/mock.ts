@@ -53,15 +53,14 @@ const lv = (o: Partial<Levers>): Levers => ({
 	sequencer: true,
 	fxmaster: true,
 	unfocusedFps: 15,
-	prime: "medium",
 	...o
 });
 
 /** Копия пресетов из src-tauri/src/profile.rs — только для превью в браузере. */
 const presets: Record<ProfileId, Levers> = {
-	quality: lv({ perfMode: 2, resMin: 1, adaptive: false, pixelRatioScaling: true, visionAnimation: true, video: "play", uiBlur: true, unfocusedFps: 60, prime: "soft" }),
+	quality: lv({ perfMode: 2, resMin: 1, adaptive: false, pixelRatioScaling: true, visionAnimation: true, video: "play", uiBlur: true, unfocusedFps: 60 }),
 	balance: lv({}),
-	potato: lv({ perfMode: 0, maxFps: 45, resMin: 0.55, resMax: 0.85, lightAnimation: false, mipmap: false, video: "static", sequencer: false, fxmaster: false, unfocusedFps: 10, prime: "aggressive" })
+	potato: lv({ perfMode: 0, maxFps: 45, resMin: 0.55, resMax: 0.85, lightAnimation: false, mipmap: false, video: "static", sequencer: false, fxmaster: false, unfocusedFps: 10 })
 };
 
 let settings: Settings = {

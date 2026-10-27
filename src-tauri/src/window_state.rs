@@ -117,10 +117,7 @@ pub fn load(dir: &Path) -> Saved {
 }
 
 pub fn save(dir: &Path, saved: &Saved) -> std::io::Result<()> {
-    fs::create_dir_all(dir)?;
-    let tmp = dir.join("windows.json.tmp");
-    fs::write(&tmp, serde_json::to_vec_pretty(saved)?)?;
-    fs::rename(tmp, file_path(dir))
+    crate::store::write_atomic(&file_path(dir), &serde_json::to_vec_pretty(saved)?)
 }
 
 #[cfg(test)]

@@ -85,17 +85,30 @@ export class Hud {
 	}
 
 	toggle(): void {
-		this.box.hidden = !this.box.hidden;
+		if (this.box.hidden) this.show();
+		else this.box.hidden = true;
 	}
 
 	toggleMenu(): void {
-		this.box.hidden = false;
+		this.show();
 		this.menu.hidden = !this.menu.hidden;
 	}
 
 	status(text: string): void {
 		this.el.status.textContent = text;
+		this.show();
+	}
+
+	private show(): void {
 		this.box.hidden = false;
+		// Окно могло стать меньше, чем было, когда HUD перетаскивали
+		this.place(parseFloat(this.box.style.right), parseFloat(this.box.style.top));
+	}
+
+	private place(right: unknown, top: unknown): void {
+		const fit = (v: unknown, max: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(Math.max(0, v), Math.max(0, max)) : 12);
+		this.box.style.right = `${fit(right, innerWidth - this.box.offsetWidth)}px`;
+		this.box.style.top = `${fit(top, innerHeight - this.box.offsetHeight)}px`;
 	}
 
 	update(d: HudData): void {
@@ -127,15 +140,14 @@ export class Hud {
 	}
 
 	private restorePosition(): void {
-		let pos = { right: 12, top: 12 };
+		let pos: { right?: unknown; top?: unknown } | null = null;
 		try {
 			const raw = localStorage.getItem(POS_KEY);
 			if (raw) pos = JSON.parse(raw);
 		} catch {
-			/* хранилище недоступно — позиция по умолчанию */
+			/* хранилище недоступно или запись битая — позиция по умолчанию */
 		}
-		this.box.style.right = `${pos.right}px`;
-		this.box.style.top = `${pos.top}px`;
+		this.place(pos?.right, pos?.top);
 	}
 
 	private enableDrag(): void {

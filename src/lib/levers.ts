@@ -2,9 +2,25 @@ import type { Levers, Overrides, ProfileId, Server, StateDto } from "./types";
 
 export type Scope = { kind: "global" } | { kind: "server"; id: string };
 
+const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
+/** Зеркало Rust `profile::sanitize`: иначе экран настройки показал бы не то, что получит игра. */
+function sanitize(l: Levers): Levers {
+	const a = clamp(l.resMin, 0.25, 1);
+	const b = clamp(l.resMax, 0.25, 1);
+	return {
+		...l,
+		perfMode: Math.min(l.perfMode, 3) as Levers["perfMode"],
+		maxFps: clamp(l.maxFps, 10, 240),
+		unfocusedFps: clamp(l.unfocusedFps, 5, 240),
+		resMin: Math.min(a, b),
+		resMax: Math.max(a, b)
+	};
+}
+
 function applyOverrides(base: Levers, o: Overrides): Levers {
 	const defined = Object.entries(o).filter(([, v]) => v !== undefined && v !== null);
-	return { ...base, ...Object.fromEntries(defined) } as Levers;
+	return sanitize({ ...base, ...Object.fromEntries(defined) } as Levers);
 }
 
 function serverOf(dto: StateDto, scope: Scope): Server | null {

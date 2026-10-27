@@ -79,5 +79,7 @@ describe("frame target respects the monitor", () => {
 		expect(refreshFromDeltas([16.6, 16.7, 16.8, 33.4, 16.7, 16.6, 16.7])).toBe(60);
 		expect(refreshFromDeltas([6.9, 7.0, 6.9, 6.95, 13.9, 6.9])).toBe(144);
 		expect(refreshFromDeltas([])).toBe(60);
+		// загрузка страницы тормозит часть кадров — частоту монитора выдают быстрые
+		expect(refreshFromDeltas([...Array(30).fill(25), ...Array(10).fill(16.7)])).toBe(60);
 	});
 });

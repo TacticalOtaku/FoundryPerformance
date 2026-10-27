@@ -1,4 +1,4 @@
-export type { Levers, PrimeLevel, ProfileId, VideoMode } from "../../agent/src/types";
+export type { Levers, ProfileId, VideoMode } from "../../agent/src/types";
 import type { Levers, ProfileId } from "../../agent/src/types";
 
 export type Overrides = Partial<Levers>;

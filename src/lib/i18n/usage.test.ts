@@ -22,7 +22,6 @@ const DYNAMIC = [
 	/^tip\./,
 	/^accent\./,
 	/^video\./,
-	/^prime\./,
 	/^theme\./,
 	/^main\.reason\./,
 	/^install\.step\./,

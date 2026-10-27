@@ -29,6 +29,17 @@ describe("levers resolution", () => {
 	it("server without profile inherits global profile", () => {
 		expect(resolved(dto, { kind: "server", id: "b" }).mipmap).toBe(true);
 	});
+
+	it("clamps and orders values like the launcher does (profile::sanitize)", () => {
+		const potato = { perfMode: 0, maxFps: 45, unfocusedFps: 10, resMin: 0.55, resMax: 0.85 } as Levers;
+		const d = {
+			settings: { profile: "potato", overrides: { resMin: 0.9, maxFps: 500 } },
+			servers: [],
+			presets: { quality: potato, balance: potato, potato }
+		} as unknown as StateDto;
+		const r = resolved(d, { kind: "global" });
+		expect([r.resMin, r.resMax, r.maxFps]).toEqual([0.85, 0.9, 240]);
+	});
 });
 
 describe("withOverrides", () => {

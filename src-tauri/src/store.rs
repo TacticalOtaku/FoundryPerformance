@@ -2,8 +2,8 @@ use crate::model::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
-use std::io;
-use std::path::PathBuf;
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
@@ -21,6 +21,22 @@ struct StatsFile {
 
 pub struct Store {
     dir: PathBuf,
+}
+
+/// Запись через временный файл: ни сбой посреди записи, ни отключение питания
+/// (без `sync_all` NTFS может переименовать ещё пустой файл) не оставят файл пустым.
+pub fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = PathBuf::from(tmp);
+    let mut f = fs::File::create(&tmp)?;
+    f.write_all(bytes)?;
+    f.sync_all()?;
+    drop(f);
+    fs::rename(&tmp, path)
 }
 
 pub fn engine_dir() -> PathBuf {
@@ -59,13 +75,9 @@ impl Store {
         }
     }
 
-    /// Запись через временный файл, чтобы сбой посреди записи не портил данные.
     fn write<T: Serialize>(&self, name: &str, value: &T) -> io::Result<()> {
-        fs::create_dir_all(&self.dir)?;
-        let tmp = self.dir.join(format!("{name}.tmp"));
         let json = serde_json::to_string_pretty(value).map_err(io::Error::other)?;
-        fs::write(&tmp, json)?;
-        fs::rename(&tmp, self.dir.join(name))
+        write_atomic(&self.dir.join(name), json.as_bytes())
     }
 
     pub fn load_settings(&self) -> (Settings, Option<Notice>) {
@@ -172,6 +184,15 @@ mod tests {
         let (stats, notice) = s.load_stats();
         assert!(notice.is_none());
         assert_eq!(stats["a"].last_session.unwrap().at, 7);
+    }
+
+    #[test]
+    fn settings_with_the_removed_prime_lever_still_load() {
+        let (d, s) = tmp();
+        fs::write(d.path().join("settings.json"), r#"{"profile":"potato","overrides":{"prime":"soft","maxFps":30}}"#).unwrap();
+        let (settings, notice) = s.load_settings();
+        assert!(notice.is_none());
+        assert_eq!((settings.profile, settings.overrides.max_fps), (ProfileId::Potato, Some(30)));
     }
 
     #[test]

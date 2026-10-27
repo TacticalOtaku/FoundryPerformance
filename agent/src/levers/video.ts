@@ -43,7 +43,10 @@ export class VideoController {
 
 	sync(): void {
 		const shouldPause = this.mode === "static" || (this.mode === "pauseUnfocused" && !this.focused);
-		for (const v of this.find()) {
+		const found = this.find();
+		// Видео ушедших сцен не держим до конца игры
+		for (const v of this.pausedByUs) if (!found.includes(v)) this.pausedByUs.delete(v);
+		for (const v of found) {
 			if (shouldPause) {
 				if (!v.paused) {
 					v.pause();

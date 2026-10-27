@@ -28,11 +28,14 @@ export interface AdaptiveState {
 
 const COMMON_HZ = [30, 50, 60, 75, 90, 100, 120, 144, 165, 180, 200, 240, 360];
 
-/** Частота монитора по интервалам requestAnimationFrame: медиана, прижатая к типовым значениям. */
+/**
+ * Частота монитора по интервалам requestAnimationFrame: 10-й процентиль, прижатый к типовым значениям.
+ * Медленные кадры — это загрузка страницы, а не монитор: быстрее частоты монитора браузер не рисует.
+ */
 export function refreshFromDeltas(deltasMs: number[]): number {
 	if (deltasMs.length === 0) return 60;
 	const sorted = [...deltasMs].sort((a, b) => a - b);
-	const hz = 1000 / sorted[Math.floor(sorted.length / 2)];
+	const hz = 1000 / sorted[Math.floor(sorted.length / 10)];
 	return COMMON_HZ.reduce((best, c) => (Math.abs(c - hz) < Math.abs(best - hz) ? c : best));
 }
 

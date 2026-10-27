@@ -37,6 +37,18 @@ describe("VideoController", () => {
 		expect(userPaused.plays).toBe(0);
 	});
 
+	it("forgets videos that left the scene", () => {
+		const gone = vid();
+		let scene = [gone];
+		const c = new VideoController(() => scene);
+		c.setMode("static");
+		scene = [];
+		c.sync();
+		scene = [gone];
+		c.setMode("play");
+		expect(gone.plays).toBe(0);
+	});
+
 	it("play mode resumes videos paused by static mode", () => {
 		const v = vid();
 		const c = new VideoController(() => [v]);

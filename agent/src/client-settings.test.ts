@@ -16,8 +16,7 @@ const levers: Levers = {
 	uiBlur: false,
 	sequencer: true,
 	fxmaster: true,
-	unfocusedFps: 15,
-	prime: "medium"
+	unfocusedFps: 15
 };
 
 function fakeGame(registered: Record<string, unknown>, failing: string[] = [], worldScoped: string[] = []) {

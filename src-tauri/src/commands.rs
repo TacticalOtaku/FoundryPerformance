@@ -9,7 +9,7 @@ use tauri::{AppHandle, Manager, State, Webview};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LaunchMode {
     Normal,
-    /// Без агента, стандартные флаги — чтобы исключить наше влияние.
+    /// Стандартные флаги, агент только убирает свои настройки Foundry — чтобы исключить наше влияние.
     Safe,
     /// Стандартные флаги + агент только для измерений.
     Baseline,
@@ -36,6 +36,7 @@ pub fn build_launch(settings: &Settings, server: &Server, mode: LaunchMode) -> R
         presets: &presets,
         locale: locale::effective(settings.locale),
         measure_only: mode == LaunchMode::Baseline,
+        safe: mode == LaunchMode::Safe,
     };
     Ok(windows::GameLaunch {
         url,
@@ -44,10 +45,7 @@ pub fn build_launch(settings: &Settings, server: &Server, mode: LaunchMode) -> R
             LaunchMode::Normal => engine_flags::build(&settings.engine),
             LaunchMode::Safe | LaunchMode::Baseline => engine_flags::safe(),
         },
-        init_script: match mode {
-            LaunchMode::Safe => None,
-            LaunchMode::Normal | LaunchMode::Baseline => Some(agent::script(&boot)),
-        },
+        init_script: Some(agent::script(&boot)),
         data_dir: store::engine_dir(),
     })
 }
@@ -266,9 +264,9 @@ mod tests {
     }
 
     #[test]
-    fn safe_launch_has_no_agent_and_stock_flags() {
+    fn safe_launch_only_resets_our_settings_and_uses_stock_flags() {
         let l = build_launch(&Settings::default(), &srv(), LaunchMode::Safe).unwrap();
-        assert!(l.init_script.is_none());
+        assert!(l.init_script.unwrap().contains("\"safe\":true"));
         assert_eq!(l.browser_args, engine_flags::safe());
     }
 

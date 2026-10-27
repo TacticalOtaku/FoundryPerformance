@@ -1,11 +1,11 @@
 use crate::model::EngineSettings;
 
-/// При вызове `additional_browser_args` wry перестаёт передавать свои умолчания
-/// `--disable-features=…`, поэтому они продублированы здесь.
-const COMPAT: [&str; 3] = [
+/// При вызове `additional_browser_args` wry перестаёт передавать своё умолчание
+/// `--disable-features=…`, поэтому оно продублировано здесь. `--allow-running-insecure-content`
+/// не добавляем: серверам по http он не нужен, а HTTPS-странице разрешил бы скрипты по http.
+const COMPAT: [&str; 2] = [
     "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
     "--allow-insecure-localhost",
-    "--allow-running-insecure-content",
 ];
 
 fn key(flag: &str) -> &str {
@@ -89,5 +89,11 @@ mod tests {
         let f = safe();
         assert!(!f.contains("--use-angle"));
         assert!(f.contains("--allow-insecure-localhost"));
+    }
+
+    #[test]
+    fn https_pages_never_run_insecure_scripts() {
+        assert!(!build(&EngineSettings::default()).contains("--allow-running-insecure-content"));
+        assert!(!safe().contains("--allow-running-insecure-content"));
     }
 }

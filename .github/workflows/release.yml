@@ -5,6 +5,8 @@ on:
   push:
     tags: ["v*"]
 
+# Сторонние действия закреплены по хэшу коммита: в этом задании ключ подписи автообновлений,
+# и перенесённый на чужой коммит тег не должен попасть в сборку.
 permissions:
   contents: write
 
@@ -12,16 +14,19 @@ jobs:
   release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
 
-      - uses: dtolnay/rust-toolchain@stable
+      # По хэшу действие не знает, какой тулчейн ставить, — он задаётся явно
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
 
@@ -55,7 +60,7 @@ jobs:
           export RELEASE_NOTES="$(git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)')"
           node scripts/make-manifest.mjs
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           body_path: dist-release/notes.md
           files: |

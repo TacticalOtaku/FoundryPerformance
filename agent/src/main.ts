@@ -1,7 +1,7 @@
 import { configFor, initAdaptive, refreshFromDeltas, resetTimers, stepAdaptive } from "./adaptive";
 import { runBench } from "./bench";
 import { ipcStatus, send, toggleFullscreen } from "./bridge";
-import { coreValues, defaultValues, reconcile, writePreboot } from "./client-settings";
+import { clearPreboot, coreValues, defaultValues, reconcile, writePreboot } from "./client-settings";
 import { AGENT_VERSION, collectDiag, downloadDiag } from "./diag";
 import { g } from "./foundry";
 import { FrameStats, summarize } from "./fps-meter";
@@ -30,6 +30,9 @@ function waitFor<T>(get: () => T | undefined, fn: (v: T) => void, timeoutMs = 12
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Страница Foundry: её модульные скрипты выполнены к DOMContentLoaded. Чужие сайты из ссылок чата — нет. */
+const isFoundry = () => Boolean(g.foundry || g.Hooks);
 
 /** ~40 кадров requestAnimationFrame → частота монитора (браузер не рисует чаще). */
 function measureRefresh(frames = 40): Promise<number> {
@@ -70,39 +73,43 @@ function start(boot: Boot): void {
 	const video = new VideoController(() => (measureOnly ? [] : collectVideos(g.canvas)));
 	const focus = new FocusThrottle(() => (measureOnly ? undefined : g.canvas?.app?.ticker), levers.maxFps, levers.unfocusedFps);
 
-	// Фаза 1: до загрузки Foundry
-	if (!measureOnly) {
-		try {
-			writePreboot(localStorage, coreValues(levers));
-		} catch {
-			/* localStorage недоступен — reconcile применит на ready */
-		}
-	}
+	// Фаза 1: до запуска Foundry — и только на её страницах
 	whenDom(() => {
-		if (!measureOnly) setUiBlur(document, levers.uiBlur);
+		if (!isFoundry()) return;
+		if (!measureOnly) {
+			try {
+				writePreboot(localStorage, coreValues(levers));
+			} catch {
+				/* localStorage недоступен — reconcile применит на ready */
+			}
+			setUiBlur(document, levers.uiBlur);
+		}
 		const probe = document.createElement("canvas").getContext("webgl2");
 		if (!probe && !sessionStorage.getItem("fp.nowebgl")) {
 			sessionStorage.setItem("fp.nowebgl", "1");
 			send({ kind: "webglLost", early: true });
 		}
+		// Пока сцены нет, кадры браузера идут с частотой монитора, а не игры
+		void measureRefresh().then((hz) => {
+			refreshHz = hz;
+			adaptiveCfg = configFor(levers, hz);
+		});
 	});
 
 	let hud: Hud | null = null;
 	const ensureHud = () => (hud ??= new Hud(t, { onProfile: (id) => void setProfile(id, true), onBench: () => void bench() }));
 
-	window.addEventListener(
-		"keydown",
-		(e) => {
-			if (e.key === "F9" && e.shiftKey) ensureHud().toggleMenu();
-			else if (e.key === "F9") ensureHud().toggle();
-			else if (e.key === "F10") void diag();
-			else if (e.key === "F11") toggleFullscreen();
-			else return;
-			e.preventDefault();
-			e.stopPropagation();
-		},
-		true
-	);
+	function onKey(e: KeyboardEvent): void {
+		if (e.key !== "F9" && e.key !== "F10" && e.key !== "F11") return;
+		e.preventDefault();
+		e.stopPropagation();
+		// Удержание клавиши — одно действие, а не серия диагностик и переключений экрана
+		if (e.repeat) return;
+		if (e.key === "F9" && e.shiftKey) ensureHud().toggleMenu();
+		else if (e.key === "F9") ensureHud().toggle();
+		else if (e.key === "F10") void diag();
+		else toggleFullscreen();
+	}
 
 	const targetScale = () => (levers.adaptive ? adaptive.scale : levers.resMax);
 
@@ -134,6 +141,10 @@ function start(boot: Boot): void {
 	function loop(): void {
 		const window1s = Math.max(10, Math.round(levers.maxFps));
 		const avg = stats.avgMs(window1s);
+		// Опрос, а не blur/focus: клик во встроенный iframe (видео, PDF в журнале) даёт blur окну,
+		// хотя игрой продолжают пользоваться
+		const focused = document.hasFocus() && !document.hidden;
+		if (focused !== focus.focused) onFocusChange(focused);
 		if (levers.adaptive && !measureOnly && focus.focused && avg > 0) {
 			const next = stepAdaptive(adaptive, adaptiveCfg, avg, performance.now());
 			if (next.scale !== adaptive.scale) resolution.apply(next.scale);
@@ -178,14 +189,17 @@ function start(boot: Boot): void {
 		}
 		setUiBlur(document, levers.uiBlur);
 		video.setMode(levers.video);
-		focus.setFps(levers.maxFps, levers.unfocusedFps);
 		await applySettings();
+		// После настроек: смена core.maxFPS могла переписать тикеру наш потолок
+		focus.setFps(levers.maxFps, levers.unfocusedFps);
 		resolution.apply(targetScale());
 		if (skipped > 0) hud?.status(fmt(t.missing, { n: skipped }));
 		if (persist) send({ kind: "profileChanged", profile: id });
 	}
 
 	async function bench(): Promise<void> {
+		// Второй запуск поверх идущего забрал бы его кадры, и оба вернули бы 0 FPS
+		if (benchSamples) return;
 		const h = ensureHud();
 		if (!g.canvas?.ready || !g.canvas?.dimensions) {
 			h.status(t.benchNoScene);
@@ -214,7 +228,19 @@ function start(boot: Boot): void {
 		if (!measureOnly) send({ kind: "bench", avg: out.avg, low1: out.low1, min: out.min, profile: profileId });
 	}
 
+	let diagRunning = false;
 	async function diag(): Promise<void> {
+		// Вторая диагностика запомнила бы пробные 80% как «прежний» масштаб и оставила их
+		if (diagRunning) return;
+		diagRunning = true;
+		try {
+			await diagOnce();
+		} finally {
+			diagRunning = false;
+		}
+	}
+
+	async function diagOnce(): Promise<void> {
 		const r = g.canvas?.app?.renderer;
 		const before = { scale: resolution.scale, rendererResolution: r?.resolution };
 		let resolutionTest: unknown = "no-renderer";
@@ -235,22 +261,17 @@ function start(boot: Boot): void {
 	waitFor(
 		() => g.Hooks,
 		(hooks) => {
+			window.addEventListener("keydown", onKey, true);
 			hooks.once("ready", async () => {
 				readyAt = performance.now();
-				void measureRefresh().then((hz) => {
-					refreshHz = hz;
-					adaptiveCfg = configFor(levers, hz);
-				});
 				// Настоящий адрес Foundry: у хостингов он отличается от страницы входа.
 				// Без query — там бывают токены сессии.
 				send({ kind: "foundryUrl", url: location.origin + location.pathname });
 				video.setMode(levers.video);
+				if (!measureOnly) setUiBlur(document, levers.uiBlur);
 				await applySettings();
 				attachTicker();
 				resolution.apply(targetScale());
-				window.addEventListener("blur", () => onFocusChange(false));
-				window.addEventListener("focus", () => onFocusChange(true));
-				document.addEventListener("visibilitychange", () => onFocusChange(!document.hidden));
 				setInterval(loop, 250);
 				setInterval(sessionReport, 30000);
 				setInterval(() => video.sync(), 2000);
@@ -276,4 +297,16 @@ function start(boot: Boot): void {
 }
 
 const boot = g.__FP_BOOT__ as Boot | undefined;
-if (boot && !g.__FP__) start(boot);
+// Окно игры открывает и чужие сайты — им незачем видеть id сервера и профили
+delete g.__FP_BOOT__;
+if (boot?.safe) {
+	// Безопасный режим: только убрать наши core-настройки, чтобы Foundry взяла свои умолчания
+	whenDom(() => {
+		if (!isFoundry()) return;
+		try {
+			clearPreboot(localStorage);
+		} catch {
+			/* localStorage недоступен — убирать нечего */
+		}
+	});
+} else if (boot && !g.__FP__) start(boot);

@@ -28,6 +28,11 @@ export function writePreboot(storage: { setItem(k: string, v: string): void }, v
 	for (const [k, v] of Object.entries(values)) storage.setItem(k, JSON.stringify(v));
 }
 
+/** Безопасный режим: убирает записанное `writePreboot` — без ключа Foundry берёт своё умолчание. */
+export function clearPreboot(storage: { removeItem(k: string): void }): void {
+	for (const k of Object.values(CORE_KEYS)) storage.removeItem(k);
+}
+
 export interface SettingsHost {
 	settings: {
 		settings: Map<string, { default?: unknown; scope?: string }>;

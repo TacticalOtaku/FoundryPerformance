@@ -475,7 +475,6 @@ export class AppStore {
 		this.launching = true;
 		try {
 			await this.#backend.launch(s.id, safe);
-			await this.#backend.destroy();
 		} catch (e) {
 			this.error = String(e);
 		} finally {

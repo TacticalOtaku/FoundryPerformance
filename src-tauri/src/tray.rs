@@ -1,4 +1,4 @@
-use crate::windows;
+use crate::windows::{self, WindowCoordinator};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager};
@@ -30,13 +30,8 @@ pub fn create(app: &AppHandle, lang: &str) -> tauri::Result<()> {
                 }
             }
             "launcher" => {
-                let games: Vec<_> = app.webview_windows().into_iter().filter(|(l, _)| windows::is_game(l)).collect();
-                if games.is_empty() {
-                    let _ = windows::open_launcher(app);
-                }
-                // закрытие последнего окна игры само откроет лаунчер (см. lib.rs, WindowEvent::Destroyed)
-                for (_, w) in games {
-                    let _ = w.destroy();
+                if let Some(coord) = app.try_state::<WindowCoordinator>() {
+                    coord.return_to_launcher(&windows::tauri_host(app));
                 }
             }
             "quit" => app.exit(0),

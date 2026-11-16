@@ -9,12 +9,12 @@ pub mod profile;
 pub mod splash;
 pub mod store;
 pub mod tray;
-pub mod window_state;
 pub mod windows;
 
 use installer::mode::Mode;
 use launcher::Launcher;
 use tauri::{Manager, RunEvent, WindowEvent};
+use windows::{CloseDecision, WindowCoordinator};
 
 pub fn run() {
     // Без WebView2 окно не нарисовать — спрашиваем системным диалогом и выходим
@@ -49,7 +49,10 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             let app = app.clone();
             // async: создание окна прямо из обработчика может взаимно заблокироваться на Windows
-            tauri::async_runtime::spawn(async move { second_launch(&app, argv) });
+            tauri::async_runtime::spawn(async move {
+                app.state::<WindowCoordinator>()
+                    .handle_second_launch(&windows::tauri_host(&app), &app.state::<Launcher>(), argv);
+            });
         }));
     }
     let app = builder
@@ -57,7 +60,7 @@ pub fn run() {
         .setup(move |app| {
             app.manage(installer::commands::ModeState { mode });
             app.manage(installer::commands::UpdateState::default());
-            app.manage(windows::WindowMemory::new(store::Store::default_dir()));
+            app.manage(WindowCoordinator::new(store::Store::default_dir(), &args));
             let launcher = Launcher::new(store::Store::new(store::Store::default_dir()));
             let lang = launcher.lang();
             app.manage(launcher);
@@ -68,49 +71,37 @@ pub fn run() {
             }
             tray::create(app.handle(), lang)?;
             // Сначала сплэш обновления; лаунчер или игру по адресу он откроет сам
-            app.manage(splash::SplashState::new(&args));
             windows::open_splash(app.handle())?;
             Ok(())
         })
         .on_window_event(|window, event| match (window.label(), event) {
-            // Alt+F4 на сплэше — выход, как у лаунчера, но не посреди замены exe
-            (windows::SPLASH, WindowEvent::CloseRequested { api, .. }) => {
-                if window.try_state::<installer::commands::UpdateState>().is_some_and(|s| s.applying()) {
-                    api.prevent_close();
-                } else {
-                    window.app_handle().exit(0)
-                }
-            }
             (_, WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
-                if let Some(m) = window.try_state::<windows::WindowMemory>() {
-                    m.track(window);
+                if let Some(coord) = window.try_state::<WindowCoordinator>() {
+                    coord.track(window);
                 }
             }
-            // Пользователь закрыл лаунчер крестиком — выходим. Программный destroy()
-            // при запуске игры CloseRequested не порождает.
-            (windows::LAUNCHER, WindowEvent::CloseRequested { .. }) => {
-                if let Some(m) = window.try_state::<windows::WindowMemory>() {
-                    m.persist();
+            (label, WindowEvent::CloseRequested { api, .. }) => {
+                let applying = window.try_state::<installer::commands::UpdateState>().is_some_and(|s| s.applying());
+                let decision = window
+                    .try_state::<WindowCoordinator>()
+                    .map_or(CloseDecision::Ignore, |coord| coord.close_decision(label, applying));
+                match decision {
+                    CloseDecision::Prevent => api.prevent_close(),
+                    CloseDecision::Exit => window.app_handle().exit(0),
+                    CloseDecision::PersistAndExit => {
+                        if let Some(coord) = window.try_state::<WindowCoordinator>() {
+                            coord.persist();
+                        }
+                        window.app_handle().exit(0);
+                    }
+                    CloseDecision::Ignore => {}
                 }
-                window.app_handle().exit(0)
             }
             (label, WindowEvent::Destroyed) if windows::is_game(label) || label == windows::LAUNCHER => {
-                if let Some(m) = window.try_state::<windows::WindowMemory>() {
-                    m.persist();
-                }
-                if label == windows::LAUNCHER {
-                    return;
-                }
                 let app = window.app_handle();
-                let open = app.webview_windows();
-                // Sqyre и поп-ауты держат несколько окон игры — ждём закрытия последнего
-                if !windows::last_game_closed(open.keys().map(String::as_str).filter(|l| *l != label)) {
-                    return;
+                if let (Some(coord), Some(launcher)) = (app.try_state::<WindowCoordinator>(), app.try_state::<Launcher>()) {
+                    coord.handle_destroyed(&windows::tauri_host(app), &launcher, label);
                 }
-                if let Some(l) = app.try_state::<Launcher>() {
-                    l.end_game_session();
-                }
-                let _ = windows::open_launcher(app);
             }
             _ => {}
         })
@@ -149,28 +140,4 @@ pub fn run() {
             api.prevent_exit();
         }
     });
-}
-
-/// Повторный запуск: показываем то, что уже открыто, или запускаем игру по `--open`.
-fn second_launch(app: &tauri::AppHandle, argv: Vec<String>) {
-    let focus = |label: &str| {
-        app.get_webview_window(label).map(|w| {
-            let _ = w.unminimize();
-            let _ = w.show();
-            let _ = w.set_focus();
-        })
-    };
-    // Сплэш сам откроет лаунчер или игру, когда закончит
-    if focus(windows::SPLASH).is_some() {
-        return;
-    }
-    if let Some((url, mode)) = launcher::parse_cli(argv.into_iter().skip(1)) {
-        if let Err(e) = commands::launch_adhoc(app, &app.state::<Launcher>(), &url, mode) {
-            eprintln!("[foundry-performance] launch from second start failed: {e}");
-        }
-    } else if focus(windows::GAME).is_none() {
-        if let Err(e) = windows::open_launcher(app) {
-            eprintln!("[foundry-performance] open_launcher on second start failed: {e}");
-        }
-    }
 }

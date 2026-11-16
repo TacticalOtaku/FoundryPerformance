@@ -257,7 +257,8 @@ describe("AppStore", () => {
 	});
 
 	it("deleteServer cleans stats and falls back selection, dismiss clears error before notice, and launch prevents double launch", async () => {
-		let destroyed = 0;
+		let launchCalls = 0;
+		let releaseLaunch: (() => void) | null = null;
 		const { store } = makeStore({
 			seed: {
 				notice: { key: "notice.launchFailed", params: {} },
@@ -268,7 +269,10 @@ describe("AppStore", () => {
 				stats: { s1: { lastSession: { avg: 50, low1: 30, profile: "balance", at: 1 }, lastBench: null } }
 			},
 			backend: {
-				destroy: async () => void destroyed++
+				launch: async () => {
+					launchCalls++;
+					if (releaseLaunch) await new Promise<void>((r) => (releaseLaunch = r));
+				}
 			}
 		});
 		await store.load();
@@ -283,8 +287,14 @@ describe("AppStore", () => {
 		expect(store.dto?.stats["s1"]).toBeUndefined();
 		expect(store.selectedId).toBe("s2");
 
-		await store.launch(false);
-		expect(destroyed).toBe(1);
+		releaseLaunch = () => {};
+		const first = store.launch(false);
+		const second = store.launch(false);
+		expect(store.launching).toBe(true);
+		expect(launchCalls).toBe(1);
+		releaseLaunch();
+		await Promise.all([first, second]);
+		expect(store.launching).toBe(false);
 	});
 
 	it("manual checkUpdate deduplicates, retains prior update on network error, and resets indicator after timeout", async () => {

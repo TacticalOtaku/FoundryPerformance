@@ -1,24 +1,11 @@
-//! Тонкий слой Tauri-команд поверх `Launcher`.
-use crate::launcher::{LaunchMode, Launcher, Report, StateDto};
+//! Тонкий слой Tauri-команд поверх `Launcher` и `WindowCoordinator`.
+use crate::launcher::{Launcher, Report, StateDto};
 use crate::model::{Server, Settings};
 use crate::probe::ProbeResult;
-use crate::{cache, store, windows};
+use crate::windows::{self, WindowCoordinator};
+use crate::{cache, store};
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State, Webview};
-
-pub fn launch_adhoc(app: &AppHandle, launcher: &Launcher, url: &str, mode: LaunchMode) -> Result<(), String> {
-    launcher
-        .launch_adhoc(url, mode, |game| {
-            if windows::focus_game(app) {
-                return Ok(false);
-            }
-            windows::open_game(app, game).map(|_| true).map_err(|e| {
-                eprintln!("[foundry-performance] open_game failed: {e}");
-                "notice.launchFailed".to_string()
-            })
-        })
-        .map(|_| ())
-}
 
 #[tauri::command]
 pub fn get_state(app: AppHandle, state: State<'_, Launcher>) -> StateDto {
@@ -47,18 +34,14 @@ pub async fn probe_server(app: AppHandle, url: String) -> ProbeResult {
 
 /// async: на Windows создание окна из синхронной команды может взаимно заблокироваться.
 #[tauri::command]
-pub async fn launch(app: AppHandle, state: State<'_, Launcher>, server_id: String, safe_mode: bool) -> Result<(), String> {
-    state
-        .launch_server(&server_id, safe_mode, |game| {
-            if windows::focus_game(&app) {
-                return Ok(false);
-            }
-            windows::open_game(&app, game).map(|_| true).map_err(|e| {
-                eprintln!("[foundry-performance] open_game failed: {e}");
-                "notice.launchFailed".to_string()
-            })
-        })
-        .map(|_| ())
+pub async fn launch(
+    app: AppHandle,
+    state: State<'_, Launcher>,
+    windows: State<'_, WindowCoordinator>,
+    server_id: String,
+    safe_mode: bool,
+) -> Result<(), String> {
+    windows.launch_server(&windows::tauri_host(&app), &state, &server_id, safe_mode)
 }
 
 #[tauri::command]

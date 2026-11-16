@@ -35,7 +35,6 @@ export interface LauncherBackend {
 	toggleMaximize(): Promise<void>;
 	onMaximized(cb: (on: boolean) => void): Promise<() => void>;
 	close(): Promise<void>;
-	destroy(): Promise<void>;
 }
 
 async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -90,8 +89,7 @@ export function createTauriBackend(): LauncherBackend {
 			cb(await w.isMaximized());
 			return w.onResized(async () => cb(await w.isMaximized()));
 		},
-		close: async () => void (await currentWindow()).close(),
-		destroy: async () => void (await currentWindow()).destroy()
+		close: async () => void (await currentWindow()).close()
 	};
 }
 
@@ -131,8 +129,7 @@ function createLazyPreviewBackend(): LauncherBackend {
 		minimize: call("minimize"),
 		toggleMaximize: call("toggleMaximize"),
 		onMaximized: call("onMaximized"),
-		close: call("close"),
-		destroy: call("destroy")
+		close: call("close")
 	};
 }
 

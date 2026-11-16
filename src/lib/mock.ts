@@ -248,8 +248,7 @@ export function createMemoryBackend(opts: MemoryBackendOptions = {}): LauncherBa
 		async onMaximized() {
 			return () => {};
 		},
-		async close() {},
-		async destroy() {}
+		async close() {}
 	};
 }
 

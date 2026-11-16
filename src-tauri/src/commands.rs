@@ -1,325 +1,80 @@
-use crate::model::*;
-use crate::state::{AppState, Data};
-use crate::{agent, cache, engine_flags, locale, probe, profile, store, telemetry, windows};
+//! Тонкий слой Tauri-команд поверх `Launcher`.
+use crate::launcher::{LaunchMode, Launcher, Report, StateDto};
+use crate::model::{Server, Settings};
+use crate::probe::ProbeResult;
+use crate::{cache, store, windows};
 use serde::Serialize;
-use std::collections::BTreeMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, State, Webview};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LaunchMode {
-    Normal,
-    /// Стандартные флаги, агент только убирает свои настройки Foundry — чтобы исключить наше влияние.
-    Safe,
-    /// Стандартные флаги + агент только для измерений.
-    Baseline,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StateDto {
-    settings: Settings,
-    servers: Vec<Server>,
-    stats: BTreeMap<String, ServerStats>,
-    presets: BTreeMap<ProfileId, Levers>,
-    notice: Option<Notice>,
-    locale: &'static str,
-    version: String,
-}
-
-pub fn build_launch(settings: &Settings, server: &Server, mode: LaunchMode) -> Result<windows::GameLaunch, String> {
-    let url = probe::normalize_url(&server.url)?;
-    let presets = profile::resolve_all(settings, Some(server));
-    let boot = agent::Boot {
-        server_id: &server.id,
-        profile_id: profile::active_id(settings, Some(server)),
-        presets: &presets,
-        locale: locale::effective(settings.locale),
-        measure_only: mode == LaunchMode::Baseline,
-        safe: mode == LaunchMode::Safe,
-    };
-    Ok(windows::GameLaunch {
-        url,
-        title: format!("{} — Foundry Performance", server.name),
-        browser_args: match mode {
-            LaunchMode::Normal => engine_flags::build(&settings.engine),
-            LaunchMode::Safe | LaunchMode::Baseline => engine_flags::safe(),
-        },
-        init_script: Some(agent::script(&boot)),
-        data_dir: store::engine_dir(),
-    })
-}
-
-/// Адрес игры узнаёт только агент — из интерфейса его не принимаем.
-/// Сохраняется, пока адрес входа тот же; сменили адрес — узнаем заново при следующем входе.
-pub fn merge_server(stored: Option<&Server>, incoming: Server) -> Server {
-    let game_url = stored.filter(|s| s.url == incoming.url).and_then(|s| s.game_url.clone());
-    Server { game_url, ..incoming }
-}
-
-pub fn parse_cli(args: impl Iterator<Item = String>) -> Option<(String, LaunchMode)> {
-    let mut url = None;
-    let mut mode = LaunchMode::Normal;
-    let mut it = args;
-    while let Some(a) = it.next() {
-        match a.as_str() {
-            "--open" => url = it.next(),
-            "--safe" => mode = LaunchMode::Safe,
-            "--baseline" => mode = LaunchMode::Baseline,
-            _ => {}
-        }
-    }
-    url.map(|u| (u, mode))
-}
-
-/// `false` — игра уже открыта: окно поднято, сессия и `last_server` не трогаются,
-/// иначе отчёты идущей игры проверялись бы по адресам другого сервера.
-fn start_game(app: &AppHandle, state: &AppState, server: &Server, mode: LaunchMode) -> Result<bool, String> {
-    if windows::focus_game(app) {
-        return Ok(false);
-    }
-    let launch = {
-        let mut d = state.data.lock().expect("state poisoned");
-        d.current_server = Some(server.id.clone());
-        d.session_fallback_done = false;
-        d.session_origins = telemetry::session_origins(server);
-        build_launch(&d.settings, server, mode)?
-    };
-    windows::open_game(app, launch).map(|_| true).map_err(|e| {
-        eprintln!("[foundry-performance] open_game failed: {e}");
-        "notice.launchFailed".to_string()
-    })
-}
-
-/// Запуск из командной строки: `--open <url> [--safe|--baseline]`.
-pub fn launch_adhoc(app: &AppHandle, state: &AppState, url: &str, mode: LaunchMode) -> Result<(), String> {
-    let server = Server { id: "adhoc".into(), name: url.to_string(), url: url.to_string(), profile: None, overrides: Overrides::default(), game_url: None };
-    start_game(app, state, &server, mode).map(|_| ())
+pub fn launch_adhoc(app: &AppHandle, launcher: &Launcher, url: &str, mode: LaunchMode) -> Result<(), String> {
+    launcher
+        .launch_adhoc(url, mode, |game| {
+            if windows::focus_game(app) {
+                return Ok(false);
+            }
+            windows::open_game(app, game).map(|_| true).map_err(|e| {
+                eprintln!("[foundry-performance] open_game failed: {e}");
+                "notice.launchFailed".to_string()
+            })
+        })
+        .map(|_| ())
 }
 
 #[tauri::command]
-pub fn get_state(app: AppHandle, state: State<'_, AppState>) -> StateDto {
-    let d = state.data.lock().expect("state poisoned");
-    StateDto {
-        settings: d.settings.clone(),
-        servers: d.servers.clone(),
-        stats: d.stats.clone(),
-        presets: profile::presets(),
-        notice: d.notice.clone(),
-        locale: locale::effective(d.settings.locale),
-        version: app.package_info().version.to_string(),
-    }
+pub fn get_state(app: AppHandle, state: State<'_, Launcher>) -> StateDto {
+    state.state_dto(app.package_info().version.to_string())
 }
 
 #[tauri::command]
-pub fn save_server(state: State<'_, AppState>, server: Server) -> Result<Vec<Server>, String> {
-    let name = server.name.trim().to_string();
-    if name.is_empty() || name.chars().count() > 60 || server.id.trim().is_empty() {
-        return Err("err.nameRequired".into());
-    }
-    let url = probe::normalize_url(&server.url)?;
-    let mut d = state.data.lock().expect("state poisoned");
-    let clean = merge_server(d.servers.iter().find(|s| s.id == server.id), Server { name, url: url.to_string(), ..server });
-    match d.servers.iter_mut().find(|s| s.id == clean.id) {
-        Some(s) => *s = clean,
-        None => d.servers.push(clean),
-    }
-    state.store.save_servers(&d.servers).map_err(|_| "err.saveFailed".to_string())?;
-    Ok(d.servers.clone())
+pub fn save_server(state: State<'_, Launcher>, server: Server) -> Result<Vec<Server>, String> {
+    state.save_server(server)
 }
 
 #[tauri::command]
-pub fn delete_server(state: State<'_, AppState>, id: String) -> Result<Vec<Server>, String> {
-    let mut d = state.data.lock().expect("state poisoned");
-    d.servers.retain(|s| s.id != id);
-    d.stats.remove(&id);
-    if forget_server(&mut d.settings, &id) {
-        let _ = state.store.save_settings(&d.settings);
-    }
-    state.store.save_servers(&d.servers).map_err(|_| "err.saveFailed".to_string())?;
-    let _ = state.store.save_stats(&d.stats);
-    Ok(d.servers.clone())
-}
-
-/// Последний запущенный сервер пишет только лаунчер: копия настроек в интерфейсе может быть старше.
-pub fn merge_settings(stored: &Settings, incoming: Settings) -> Settings {
-    Settings { schema: SCHEMA, last_server: stored.last_server.clone(), ..incoming }
-}
-
-/// Удалённый сервер больше не «последний запущенный». `true` — настройки изменились.
-pub fn forget_server(settings: &mut Settings, id: &str) -> bool {
-    if settings.last_server.as_deref() != Some(id) {
-        return false;
-    }
-    settings.last_server = None;
-    true
+pub fn delete_server(state: State<'_, Launcher>, id: String) -> Result<Vec<Server>, String> {
+    state.delete_server(&id)
 }
 
 #[tauri::command]
-pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<Settings, String> {
-    let mut d = state.data.lock().expect("state poisoned");
-    d.settings = merge_settings(&d.settings, settings);
-    state.store.save_settings(&d.settings).map_err(|_| "err.saveFailed".to_string())?;
-    Ok(d.settings.clone())
+pub fn save_settings(state: State<'_, Launcher>, settings: Settings) -> Result<Settings, String> {
+    state.save_settings(settings)
 }
 
 #[tauri::command]
-pub async fn probe_server(url: String) -> probe::ProbeResult {
-    probe::probe(&url).await
+pub async fn probe_server(app: AppHandle, url: String) -> ProbeResult {
+    app.state::<Launcher>().probe_server(&url).await
 }
 
 /// async: на Windows создание окна из синхронной команды может взаимно заблокироваться.
 #[tauri::command]
-pub async fn launch(app: AppHandle, state: State<'_, AppState>, server_id: String, safe_mode: bool) -> Result<(), String> {
-    let server = {
-        let d = state.data.lock().expect("state poisoned");
-        d.servers.iter().find(|s| s.id == server_id).cloned().ok_or_else(|| "err.serverMissing".to_string())?
-    };
-    let mode = if safe_mode { LaunchMode::Safe } else { LaunchMode::Normal };
-    if !start_game(&app, &state, &server, mode)? {
-        return Ok(());
-    }
-    // При следующем открытии лаунчер предложит продолжить с этого сервера
-    let mut d = state.data.lock().expect("state poisoned");
-    if d.settings.last_server.as_deref() != Some(server.id.as_str()) {
-        d.settings.last_server = Some(server.id);
-        let _ = state.store.save_settings(&d.settings);
-    }
-    Ok(())
+pub async fn launch(app: AppHandle, state: State<'_, Launcher>, server_id: String, safe_mode: bool) -> Result<(), String> {
+    state
+        .launch_server(&server_id, safe_mode, |game| {
+            if windows::focus_game(&app) {
+                return Ok(false);
+            }
+            windows::open_game(&app, game).map(|_| true).map_err(|e| {
+                eprintln!("[foundry-performance] open_game failed: {e}");
+                "notice.launchFailed".to_string()
+            })
+        })
+        .map(|_| ())
 }
 
 #[tauri::command]
-pub fn clear_notice(state: State<'_, AppState>) {
-    state.data.lock().expect("state poisoned").notice = None;
+pub fn clear_notice(state: State<'_, Launcher>) {
+    state.clear_notice();
 }
 
 /// Окна игры открывают и чужие страницы (ссылки из чата), а IPC им доступен.
-/// Поэтому отчёт принимается только со страниц этой сессии, а новый адрес игры —
-/// только о самой странице и только если по нему действительно отвечает Foundry.
+/// Вся проверка источника и обновление состояния идут через `Launcher`.
 #[tauri::command]
-pub async fn report_telemetry(webview: Webview, state: State<'_, AppState>, report: telemetry::Report) -> Result<(), String> {
-    if !windows::is_game(webview.label()) || !telemetry::validate(&report) {
+pub async fn report_telemetry(webview: Webview, state: State<'_, Launcher>, report: Report) -> Result<(), String> {
+    if !windows::is_game(webview.label()) {
         return Err("rejected".into());
     }
     let page = webview.url().map_err(|_| "rejected".to_string())?;
-    if let telemetry::Report::FoundryUrl { url } = &report {
-        if !telemetry::describes_page(url, &page) || !probe::probe(url).await.foundry {
-            return Err("rejected".into());
-        }
-        let mut d = state.data.lock().expect("state poisoned");
-        if !d.session_origins.contains(&page.origin()) {
-            d.session_origins.push(page.origin());
-        }
-    } else if !telemetry::page_trusted(&page, &state.data.lock().expect("state poisoned").session_origins) {
-        return Err("rejected".into());
-    }
-    let mut guard = state.data.lock().expect("state poisoned");
-    let d = &mut *guard;
-    let Some(server_id) = d.current_server.clone() else { return Ok(()) };
-    if matches!(report, telemetry::Report::WebglLost { early: true }) {
-        if d.session_fallback_done {
-            return Ok(());
-        }
-        d.session_fallback_done = true;
-    }
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|t| t.as_secs()).unwrap_or(0);
-    let fx = telemetry::apply(&report, &server_id, now, &mut d.stats, &mut d.servers, &mut d.settings);
-    commit(&state, d, fx);
-    Ok(())
-}
-
-/// Сохраняет то, что изменил отчёт агента.
-fn commit(state: &AppState, d: &mut Data, fx: telemetry::Effects) {
-    if fx.stats {
-        let _ = state.store.save_stats(&d.stats);
-    }
-    if fx.servers {
-        let _ = state.store.save_servers(&d.servers);
-    }
-    if fx.settings {
-        let _ = state.store.save_settings(&d.settings);
-    }
-    if fx.notice.is_some() {
-        d.notice = fx.notice;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn srv() -> Server {
-        Server { id: "a1".into(), name: "Страд".into(), url: "vtt.example.com/game".into(), profile: Some(ProfileId::Potato), overrides: Overrides::default(), game_url: None }
-    }
-
-    #[test]
-    fn normal_launch_uses_tuned_flags_and_agent() {
-        let l = build_launch(&Settings::default(), &srv(), LaunchMode::Normal).unwrap();
-        assert_eq!(l.url.as_str(), "https://vtt.example.com/");
-        assert!(l.browser_args.contains("--use-angle=d3d11"));
-        let script = l.init_script.unwrap();
-        assert!(script.contains("\"profileId\":\"potato\""));
-        assert!(script.contains("\"measureOnly\":false"));
-        assert!(l.title.contains("Страд"));
-    }
-
-    #[test]
-    fn safe_launch_only_resets_our_settings_and_uses_stock_flags() {
-        let l = build_launch(&Settings::default(), &srv(), LaunchMode::Safe).unwrap();
-        assert!(l.init_script.unwrap().contains("\"safe\":true"));
-        assert_eq!(l.browser_args, engine_flags::safe());
-    }
-
-    #[test]
-    fn baseline_launch_measures_only() {
-        let l = build_launch(&Settings::default(), &srv(), LaunchMode::Baseline).unwrap();
-        assert_eq!(l.browser_args, engine_flags::safe());
-        assert!(l.init_script.unwrap().contains("\"measureOnly\":true"));
-    }
-
-    #[test]
-    fn invalid_url_is_rejected() {
-        let s = Server { url: "::::".into(), ..srv() };
-        assert_eq!(build_launch(&Settings::default(), &s, LaunchMode::Normal).unwrap_err(), "err.urlInvalid");
-    }
-
-    #[test]
-    fn saving_keeps_discovered_game_url_until_address_changes() {
-        let stored = Server { url: "https://www.sqyre.app/games/x/".into(), game_url: Some("https://x.sqyre.app/".into()), ..srv() };
-        let renamed = merge_server(Some(&stored), Server { name: "Новое имя".into(), game_url: None, ..stored.clone() });
-        assert_eq!(renamed.game_url.as_deref(), Some("https://x.sqyre.app/"));
-        let moved = merge_server(Some(&stored), Server { url: "https://other.host/".into(), ..stored.clone() });
-        assert_eq!(moved.game_url, None);
-        let fresh = merge_server(None, Server { game_url: Some("https://spoofed/".into()), ..srv() });
-        assert_eq!(fresh.game_url, None);
-    }
-
-    #[test]
-    fn parse_cli_args() {
-        let a = |v: &[&str]| parse_cli(v.iter().map(|s| s.to_string()));
-        assert_eq!(a(&["--open", "vtt.x"]), Some(("vtt.x".to_string(), LaunchMode::Normal)));
-        assert_eq!(a(&["--safe", "--open", "vtt.x"]), Some(("vtt.x".to_string(), LaunchMode::Safe)));
-        assert_eq!(a(&["--open", "vtt.x", "--baseline"]), Some(("vtt.x".to_string(), LaunchMode::Baseline)));
-        assert_eq!(a(&[]), None);
-    }
-
-    #[test]
-    fn saving_settings_keeps_the_last_launched_server() {
-        let stored = Settings { last_server: Some("a1".into()), ..Settings::default() };
-        let incoming = Settings { profile: ProfileId::Potato, last_server: None, ..Settings::default() };
-        let merged = merge_settings(&stored, incoming);
-        assert_eq!(merged.last_server.as_deref(), Some("a1"));
-        assert_eq!(merged.profile, ProfileId::Potato);
-    }
-
-    #[test]
-    fn deleting_the_last_launched_server_forgets_it() {
-        let mut s = Settings { last_server: Some("a1".into()), ..Settings::default() };
-        assert!(!forget_server(&mut s, "a2"));
-        assert_eq!(s.last_server.as_deref(), Some("a1"));
-        assert!(forget_server(&mut s, "a1"));
-        assert_eq!(s.last_server, None);
-    }
+    state.report_telemetry(&page, report).await
 }
 
 /// F11 в игре: полный экран без рамки для того окна, где нажали.

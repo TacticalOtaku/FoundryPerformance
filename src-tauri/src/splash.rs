@@ -1,8 +1,8 @@
 //! Сплэш обновления: окно перед лаунчером или игрой, проверяет и ставит обновление.
-use crate::commands::{self, LaunchMode};
+use crate::commands;
 use crate::installer::commands::UPDATED_FLAG;
 use crate::installer::version;
-use crate::state::AppState;
+use crate::launcher::{self, LaunchMode, Launcher};
 use crate::windows;
 use serde::Serialize;
 use std::sync::Mutex;
@@ -24,7 +24,7 @@ pub struct SplashState {
 
 impl SplashState {
     pub fn new(args: &[String]) -> SplashState {
-        let after = match commands::parse_cli(args.iter().cloned()) {
+        let after = match launcher::parse_cli(args.iter().cloned()) {
             Some((url, mode)) => AfterSplash::Adhoc { url, mode },
             None => AfterSplash::Launcher,
         };
@@ -53,9 +53,9 @@ pub fn splash_flags(state: State<'_, SplashState>) -> SplashFlags {
 
 /// async: на Windows создание окна из синхронной команды может взаимно заблокироваться.
 #[tauri::command]
-pub async fn splash_done(app: AppHandle, state: State<'_, SplashState>, data: State<'_, AppState>) -> Result<(), String> {
+pub async fn splash_done(app: AppHandle, state: State<'_, SplashState>, launcher: State<'_, Launcher>) -> Result<(), String> {
     let game = match state.take_after() {
-        AfterSplash::Adhoc { url, mode } => commands::launch_adhoc(&app, &data, &url, mode)
+        AfterSplash::Adhoc { url, mode } => commands::launch_adhoc(&app, &launcher, &url, mode)
             .map_err(|e| eprintln!("[foundry-performance] launch after splash failed: {e}"))
             .is_ok(),
         AfterSplash::Launcher => false,
@@ -87,7 +87,7 @@ pub async fn restart_to_update(app: AppHandle, state: State<'_, SplashState>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::LaunchMode;
+    use crate::launcher::LaunchMode;
 
     fn args(v: &[&str]) -> Vec<String> {
         v.iter().map(|s| s.to_string()).collect()

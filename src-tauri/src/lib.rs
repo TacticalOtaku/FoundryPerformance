@@ -1,29 +1,25 @@
-pub mod agent;
 pub mod cache;
 pub mod commands;
 pub mod engine_flags;
 pub mod installer;
-pub mod locale;
+pub mod launcher;
 pub mod model;
 pub mod probe;
 pub mod profile;
 pub mod splash;
-pub mod state;
 pub mod store;
-pub mod telemetry;
 pub mod tray;
 pub mod window_state;
 pub mod windows;
 
 use installer::mode::Mode;
-use state::{AppState, Data};
-use std::sync::Mutex;
+use launcher::Launcher;
 use tauri::{Manager, RunEvent, WindowEvent};
 
 pub fn run() {
     // Без WebView2 окно не нарисовать — спрашиваем системным диалогом и выходим
     if !installer::webview2::installed() {
-        installer::webview2::prompt_download(locale::effective(model::Locale::Auto));
+        installer::webview2::prompt_download(launcher::system_locale());
         return;
     }
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -62,23 +58,9 @@ pub fn run() {
             app.manage(installer::commands::ModeState { mode });
             app.manage(installer::commands::UpdateState::default());
             app.manage(windows::WindowMemory::new(store::Store::default_dir()));
-            let store = store::Store::new(store::Store::default_dir());
-            let (settings, n1) = store.load_settings();
-            let (servers, n2) = store.load_servers();
-            let (stats, n3) = store.load_stats();
-            let lang = locale::effective(settings.locale);
-            app.manage(AppState {
-                store,
-                data: Mutex::new(Data {
-                    settings,
-                    servers,
-                    stats,
-                    notice: n1.or(n2).or(n3),
-                    current_server: None,
-                    session_fallback_done: false,
-                    session_origins: Vec::new(),
-                }),
-            });
+            let launcher = Launcher::new(store::Store::new(store::Store::default_dir()));
+            let lang = launcher.lang();
+            app.manage(launcher);
             // Установщик и удаление — только окно, без трея и игры
             if mode != Mode::Launcher {
                 windows::open_launcher(app.handle())?;
@@ -125,8 +107,8 @@ pub fn run() {
                 if !windows::last_game_closed(open.keys().map(String::as_str).filter(|l| *l != label)) {
                     return;
                 }
-                if let Some(s) = app.try_state::<AppState>() {
-                    s.data.lock().expect("state poisoned").current_server = None;
+                if let Some(l) = app.try_state::<Launcher>() {
+                    l.end_game_session();
                 }
                 let _ = windows::open_launcher(app);
             }
@@ -182,8 +164,8 @@ fn second_launch(app: &tauri::AppHandle, argv: Vec<String>) {
     if focus(windows::SPLASH).is_some() {
         return;
     }
-    if let Some((url, mode)) = commands::parse_cli(argv.into_iter().skip(1)) {
-        if let Err(e) = commands::launch_adhoc(app, &app.state::<AppState>(), &url, mode) {
+    if let Some((url, mode)) = launcher::parse_cli(argv.into_iter().skip(1)) {
+        if let Err(e) = commands::launch_adhoc(app, &app.state::<Launcher>(), &url, mode) {
             eprintln!("[foundry-performance] launch from second start failed: {e}");
         }
     } else if focus(windows::GAME).is_none() {

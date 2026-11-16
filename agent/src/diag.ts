@@ -1,7 +1,7 @@
 import { g } from "./foundry";
 import { collectVideos, probeVideoMesh } from "./levers/video";
 
-export const AGENT_VERSION = "0.3.0";
+export const AGENT_VERSION = "0.3.1";
 
 function plain(v: unknown): unknown {
 	try {

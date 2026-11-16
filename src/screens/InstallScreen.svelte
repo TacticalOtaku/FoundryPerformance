@@ -7,7 +7,7 @@
 	import Shell from "../components/tactile/Shell.svelte";
 	import Toggle from "../components/tactile/Toggle.svelte";
 	import Tray from "../components/tactile/Tray.svelte";
-	import { setupApi } from "../lib/api";
+	import { backend } from "../lib/api";
 	import { t } from "../lib/i18n.svelte";
 	import { openWindow } from "../lib/motion";
 	import type { InstallInfo, InstallStep } from "../lib/types";
@@ -57,7 +57,7 @@
 
 	async function validate(): Promise<boolean> {
 		try {
-			await setupApi.checkDir(dir);
+			await backend.checkDir(dir);
 			dirError = null;
 			return true;
 		} catch (e) {
@@ -67,7 +67,7 @@
 	}
 
 	async function browse() {
-		const picked = await setupApi.pickDir(dir);
+		const picked = await backend.pickDir(dir);
 		if (picked) {
 			dir = picked;
 			await validate();
@@ -80,12 +80,12 @@
 		error = null;
 		pct = 0;
 		step = null;
-		const off = await setupApi.onProgress((p) => {
+		const off = await backend.onInstallProgress((p) => {
 			step = p.step;
 			pct = p.pct;
 		});
 		try {
-			await setupApi.install({ dir, desktop, launch });
+			await backend.install({ dir, desktop, launch });
 			step = "done";
 			pct = 100;
 			phase = "done";
@@ -108,7 +108,7 @@
 				{#if phase === "done"}
 					<p class="ok" role="status">{t("install.done")}</p>
 					<div class="grow"></div>
-					{#if !launch}<Primary size="lg" onclick={() => setupApi.openInstalled()}>{t("install.openInstalled")}</Primary>{/if}
+					{#if !launch}<Primary size="lg" onclick={() => backend.openInstalled()}>{t("install.openInstalled")}</Primary>{/if}
 				{:else}
 					<div class="form">
 						<Field
@@ -136,7 +136,7 @@
 					{#if info.state === "current" && phase !== "running"}
 						<div class="pair">
 							<Button onclick={run}>{phase === "error" ? t("install.retry") : goLabel}</Button>
-							<Primary size="lg" onclick={() => setupApi.openInstalled()}>{t("install.openInstalled")}</Primary>
+							<Primary size="lg" onclick={() => backend.openInstalled()}>{t("install.openInstalled")}</Primary>
 						</div>
 					{:else}
 						<Primary size="lg" busy={phase === "running"} onclick={run}>{phase === "error" ? t("install.retry") : goLabel}</Primary>

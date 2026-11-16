@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { api } from "../lib/api";
+	import { backend } from "../lib/api";
 	import { formatBytes } from "../lib/bytes";
 	import { locale, t } from "../lib/i18n.svelte";
 	import { app } from "../lib/store.svelte";
@@ -23,7 +23,7 @@
 	const fmt = (n: number) => formatBytes(n, { mb: t("unit.mb"), gb: t("unit.gb") }, locale());
 
 	onMount(() => {
-		void api.cacheSize().then((n) => (bytes = n)).catch(() => {});
+		void backend.cacheSize().then((n) => (bytes = n)).catch(() => {});
 		return () => clearTimeout(timer);
 	});
 
@@ -42,8 +42,8 @@
 		clearTimeout(timer);
 		phase = { kind: "busy" };
 		try {
-			const r = await api.clearCache();
-			bytes = await api.cacheSize().catch(() => 0);
+			const r = await backend.clearCache();
+			bytes = await backend.cacheSize().catch(() => 0);
 			phase = r.pending
 				? { kind: "done", text: t("cache.pending"), warn: true }
 				: { kind: "done", text: t("cache.freed", { size: fmt(r.freed) }), warn: false };

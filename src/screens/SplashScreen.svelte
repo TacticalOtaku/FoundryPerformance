@@ -1,24 +1,13 @@
 <script lang="ts">
 	import Ring from "../components/splash/Ring.svelte";
-	import { splashApi, updateApi } from "../lib/api";
+	import { backend } from "../lib/api";
 	import { t } from "../lib/i18n.svelte";
-	import { canSkip, CHECK_TIMEOUT_S, type Phase, ringMode, SplashFlow } from "../lib/splash";
+	import { canSkip, type Phase, ringMode, SplashFlow } from "../lib/splash";
 
 	let { current }: { current: string } = $props();
 
 	let phase = $state<Phase>({ kind: "checking" });
-	const flow = new SplashFlow(
-		{
-			flags: splashApi.flags,
-			check: () => updateApi.check(CHECK_TIMEOUT_S),
-			apply: updateApi.apply,
-			onProgress: (cb) => updateApi.onProgress(cb),
-			cancel: updateApi.cancel,
-			done: splashApi.done,
-			wait: (ms) => new Promise((r) => setTimeout(r, ms))
-		},
-		(p) => (phase = p)
-	);
+	const flow = new SplashFlow(backend, (p) => (phase = p));
 	void flow.run();
 
 	const title = $derived.by(() => {

@@ -3,7 +3,7 @@
 	import Primary from "../components/tactile/Primary.svelte";
 	import Shell from "../components/tactile/Shell.svelte";
 	import Toggle from "../components/tactile/Toggle.svelte";
-	import { setupApi, windowControls } from "../lib/api";
+	import { backend } from "../lib/api";
 	import { t } from "../lib/i18n.svelte";
 	import { openWindow } from "../lib/motion";
 
@@ -16,7 +16,7 @@
 		phase = "running";
 		error = null;
 		try {
-			await setupApi.uninstall(wipe);
+			await backend.uninstall(wipe);
 			phase = "done";
 		} catch (e) {
 			phase = "error";
@@ -32,7 +32,7 @@
 			<p class="lead">{t("uninstall.lead")}</p>
 			{#if phase === "done"}
 				<p class="done" role="status">{t("uninstall.done")}</p>
-				<div class="actions"><Button onclick={() => windowControls.close()}>{t("uninstall.close")}</Button></div>
+				<div class="actions"><Button onclick={() => backend.close()}>{t("uninstall.close")}</Button></div>
 			{:else}
 				<div class="opt">
 					<Toggle danger label={t("uninstall.wipe")} checked={wipe} disabled={phase === "running"} onchange={(v) => (wipe = v)} />
@@ -40,7 +40,7 @@
 				{#if phase === "running"}<p class="status" role="status">{t("uninstall.running")}</p>{/if}
 				{#if error}<p class="err" role="alert">{error}</p>{/if}
 				<div class="actions">
-					<Button disabled={phase === "running"} onclick={() => windowControls.close()}>{t("uninstall.cancel")}</Button>
+					<Button disabled={phase === "running"} onclick={() => backend.close()}>{t("uninstall.cancel")}</Button>
 					<Primary tone="danger" icon="trash" busy={phase === "running"} onclick={run}>{t("uninstall.go")}</Primary>
 				</div>
 			{/if}

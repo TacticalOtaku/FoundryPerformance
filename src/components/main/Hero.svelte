@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { t } from "../../lib/i18n.svelte";
-	import { hostOf, intentReason, lastRun, STATUS_DETAIL, STATUS_TONE } from "../../lib/intent";
-	import { type KnobPosition, knobPosition } from "../../lib/levers";
 	import { rise } from "../../lib/motion";
-	import { PROFILE_POSITIONS, profileTipKey } from "../../lib/profile-tip";
-	import { slotStatus } from "../../lib/status";
-	import { app } from "../../lib/store.svelte";
+	import { app, type KnobPosition, PROFILE_POSITIONS, profileTipKey } from "../../lib/store.svelte";
 	import Icon from "../tactile/Icon.svelte";
 	import Label from "../tactile/Label.svelte";
 	import Pill from "../tactile/Pill.svelte";
@@ -13,15 +9,10 @@
 	import Segments from "../tactile/Segments.svelte";
 	import Shell from "../tactile/Shell.svelte";
 
-	const dto = $derived(app.dto!);
 	const sel = $derived(app.selected);
-	const knob = $derived(knobPosition(dto, sel?.id ?? null));
-	const probe = $derived(sel ? app.probes[sel.id] : undefined);
-	const status = $derived(sel ? slotStatus(sel, probe) : null);
-	const run = $derived(sel ? lastRun(dto.stats[sel.id]) : null);
-	const reason = $derived(intentReason(sel?.id ?? null, dto.settings.lastServer));
-	const world = $derived(probe && probe !== "pending" ? (probe.world ?? "") : "");
-	const statusTip = $derived(status ? { title: t(`status.${status}`), body: t(STATUS_DETAIL[status], { world }) } : undefined);
+	const view = $derived(sel ? app.slotView(sel) : null);
+	const knob = $derived(app.knobPosition);
+	const statusTip = $derived(view ? { title: t(`status.${view.status}`), body: t(view.detailKey, { world: view.world }) } : undefined);
 	const profiles = $derived(
 		PROFILE_POSITIONS.map((p) => ({ value: p, label: t(`profile.${p}.long`), short: t(`profile.${p}`), arrowSkip: p === "manual" }))
 	);
@@ -35,24 +26,24 @@
 <svelte:window onkeydown={track} onkeyup={track} onblur={() => (shift = false)} />
 
 <Shell fill pad="22px 24px 20px">
-	{#if sel}
+	{#if sel && view}
 		<div class="top">
-			<Label>{reason === "last" ? t("main.continue") : t("main.selected")}</Label>
-			{#if status}<Pill tone={STATUS_TONE[status]} tip={statusTip}>{t(`status.${status}`)}</Pill>{/if}
+			<Label>{view.reason === "last" ? t("main.continue") : t("main.selected")}</Label>
+			<Pill tone={view.tone} tip={statusTip}>{t(`status.${view.status}`)}</Pill>
 		</div>
 		<div class="grow"></div>
 		<div class="intent" use:rise={sel.id}>
 			<h1 class="name">{sel.name}</h1>
 			<p class="meta">
-				<span>{hostOf(sel.url)}</span>
+				<span>{view.host}</span>
 				<span aria-hidden="true">·</span>
-				{#if run}
-					<span>{t(run.kind === "bench" ? "main.lastBench" : "main.lastSession")} <b>{run.fps}</b> FPS</span>
+				{#if view.run}
+					<span>{t(view.run.kind === "bench" ? "main.lastBench" : "main.lastSession")} <b>{view.run.fps}</b> FPS</span>
 				{:else}
 					<span>{t("main.noData")}</span>
 				{/if}
 			</p>
-			{#if reason}<span class="why"><Icon name="clock" size={14} />{t(`main.reason.${reason}`)}</span>{/if}
+			{#if view.reason}<span class="why"><Icon name="clock" size={14} />{t(`main.reason.${view.reason}`)}</span>{/if}
 		</div>
 		<div class="grow"></div>
 		<Segments label={t("main.profile")} options={profiles} value={knob} onchange={(p: KnobPosition) => app.setKnob(p)} />

@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { t } from "../../lib/i18n.svelte";
-	import { lastRun } from "../../lib/intent";
 	import { countTo } from "../../lib/motion";
 	import { app } from "../../lib/store.svelte";
 	import Core from "../tactile/Core.svelte";
 	import Label from "../tactile/Label.svelte";
 
-	const run = $derived(app.selected ? lastRun(app.dto!.stats[app.selected.id]) : null);
+	const run = $derived(app.selected ? app.slotView(app.selected).run : null);
 </script>
 
 <Core pad="14px 16px 15px">

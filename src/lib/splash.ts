@@ -1,3 +1,4 @@
+import type { LauncherBackend } from "./api";
 import type { UpdateInfo } from "./types";
 
 /** Сплэш ждёт ленту меньше фоновой проверки — игрок не должен сидеть перед кольцом. */
@@ -19,15 +20,10 @@ export type Phase =
 
 export type RingMode = "spin" | "progress" | "breathe" | "muted" | "error" | "full";
 
-export interface SplashDeps {
-	flags(): Promise<{ updated: string | null }>;
-	check(): Promise<UpdateInfo | null>;
-	apply(): Promise<void>;
-	onProgress(cb: (pct: number) => void): Promise<() => void>;
-	cancel(): Promise<void>;
-	done(): Promise<void>;
-	wait(ms: number): Promise<void>;
-}
+export type SplashBackend = Pick<
+	LauncherBackend,
+	"splashFlags" | "checkUpdate" | "applyUpdate" | "onUpdateProgress" | "cancelUpdate" | "splashDone"
+>;
 
 export function ringMode(p: Phase): RingMode {
 	switch (p.kind) {
@@ -52,32 +48,38 @@ export const canSkip = (p: Phase): boolean => p.kind === "checking" || p.kind ==
 
 /** Поток сплэша: проверка → загрузка → проверка подписи → перезапуск; обновление ставится без вопроса. */
 export class SplashFlow {
-	#deps: SplashDeps;
+	#backend: SplashBackend;
 	#show: (p: Phase) => void;
+	#wait: (ms: number) => Promise<void>;
 	/** Пропустили или закрыли — поздние ответы Rust больше ничего не показывают и не ставят. */
 	#stopped = false;
 	#finished = false;
 
-	constructor(deps: SplashDeps, show: (p: Phase) => void) {
-		this.#deps = deps;
+	constructor(
+		backend: SplashBackend,
+		show: (p: Phase) => void,
+		wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))
+	) {
+		this.#backend = backend;
 		this.#show = show;
+		this.#wait = wait;
 	}
 
 	async run(): Promise<void> {
-		const { updated } = await this.#deps.flags();
+		const { updated } = await this.#backend.splashFlags();
 		if (updated) {
 			this.#show({ kind: "updated", version: updated });
-			await this.#deps.wait(UPDATED_MS);
+			await this.#wait(UPDATED_MS);
 			return this.close();
 		}
 		this.#show({ kind: "checking" });
 		let info: UpdateInfo | null;
 		try {
-			info = await this.#deps.check();
+			info = await this.#backend.checkUpdate(CHECK_TIMEOUT_S);
 		} catch {
 			if (this.#stopped) return;
 			this.#show({ kind: "offline" });
-			await this.#deps.wait(OFFLINE_MS);
+			await this.#wait(OFFLINE_MS);
 			return this.close();
 		}
 		if (this.#stopped) return;
@@ -87,13 +89,13 @@ export class SplashFlow {
 
 	async #install(version: string): Promise<void> {
 		this.#show({ kind: "downloading", version, pct: null });
-		const off = await this.#deps.onProgress((pct) => {
+		const off = await this.#backend.onUpdateProgress((pct) => {
 			if (this.#stopped) return;
 			this.#show(pct >= 100 ? { kind: "verifying", version } : { kind: "downloading", version, pct });
 		});
 		try {
 			// при успехе Rust запускает новую версию и закрывает эту
-			await this.#deps.apply();
+			await this.#backend.applyUpdate();
 			if (!this.#stopped) this.#show({ kind: "restarting", version });
 		} catch (e) {
 			const key = String(e);
@@ -106,7 +108,7 @@ export class SplashFlow {
 	async skip(): Promise<void> {
 		if (this.#stopped) return;
 		this.#stopped = true;
-		await this.#deps.cancel();
+		await this.#backend.cancelUpdate();
 		await this.close();
 	}
 
@@ -115,6 +117,6 @@ export class SplashFlow {
 		this.#stopped = true;
 		if (this.#finished) return;
 		this.#finished = true;
-		await this.#deps.done();
+		await this.#backend.splashDone();
 	}
 }

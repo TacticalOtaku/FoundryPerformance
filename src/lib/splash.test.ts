@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { canSkip, OFFLINE_MS, type Phase, ringMode, type SplashDeps, SplashFlow, UPDATED_MS } from "./splash";
+import type { LauncherBackend } from "./api";
+import { createMemoryBackend } from "./mock";
+import { canSkip, CHECK_TIMEOUT_S, type Phase, ringMode, SplashFlow } from "./splash";
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -13,77 +15,82 @@ function deferred<T>() {
 	return { promise, resolve, reject };
 }
 
-function harness(over: Partial<SplashDeps> = {}) {
+function harness(over: Partial<LauncherBackend> = {}) {
 	const shown: Phase[] = [];
 	const calls: string[] = [];
 	let progress: (pct: number) => void = () => {};
-	const deps: SplashDeps = {
-		flags: async () => ({ updated: null }),
-		check: async () => null,
-		apply: async () => {},
-		onProgress: async (cb) => {
+	const base = createMemoryBackend({ delayMs: 0 });
+	const backend: LauncherBackend = {
+		...base,
+		onUpdateProgress: async (cb) => {
 			progress = cb;
 			return () => void calls.push("off");
 		},
-		cancel: async () => void calls.push("cancel"),
-		done: async () => void calls.push("done"),
-		wait: async (ms) => void calls.push(`wait ${ms}`),
+		cancelUpdate: async () => void calls.push("cancel"),
+		splashDone: async () => void calls.push("done"),
 		...over
 	};
-	const flow = new SplashFlow(deps, (p) => shown.push(p));
+	const flow = new SplashFlow(backend, (p) => shown.push(p), async (ms) => void calls.push(`wait ${ms}`));
 	return { flow, shown, calls, progress: (pct: number) => progress(pct), last: () => shown.at(-1) };
 }
 
-const found = { version: "0.2.3", notes: "" };
+const found = { version: "0.3.1", notes: "" };
 
 describe("SplashFlow", () => {
-	it("no update: straight to the launcher", async () => {
-		const h = harness();
+	it("no update: straight to the launcher with splash timeout", async () => {
+		const seenTimeouts: (number | undefined)[] = [];
+		const h = harness({
+			checkUpdate: async (t) => {
+				seenTimeouts.push(t);
+				return null;
+			}
+		});
 		await h.flow.run();
+		expect(seenTimeouts).toEqual([CHECK_TIMEOUT_S]);
 		expect(h.shown).toEqual([{ kind: "checking" }]);
 		expect(h.calls).toEqual(["done"]);
 	});
 
-	it("offline: says so, waits, then the launcher", async () => {
-		const h = harness({ check: async () => Promise.reject("update.err.check") });
+	it("offline: says so, waits, then opens launcher", async () => {
+		const h = harness({ checkUpdate: async () => Promise.reject("update.err.check") });
 		await h.flow.run();
 		expect(h.last()).toEqual({ kind: "offline" });
-		expect(h.calls).toEqual([`wait ${OFFLINE_MS}`, "done"]);
+		expect(h.calls).toEqual(["wait 1500", "done"]);
 	});
 
 	it("after an update: shows the new version without checking again", async () => {
 		let checked = false;
 		const h = harness({
-			flags: async () => ({ updated: "0.2.3" }),
-			check: async () => {
+			splashFlags: async () => ({ updated: "0.3.1" }),
+			checkUpdate: async () => {
 				checked = true;
 				return null;
 			}
 		});
 		await h.flow.run();
-		expect(h.shown).toEqual([{ kind: "updated", version: "0.2.3" }]);
-		expect(h.calls).toEqual([`wait ${UPDATED_MS}`, "done"]);
+		expect(h.shown).toEqual([{ kind: "updated", version: "0.3.1" }]);
+		expect(h.calls).toEqual(["wait 600", "done"]);
 		expect(checked).toBe(false);
 	});
 
-	it("found: download → verify at 100 % → restart, never closes itself", async () => {
+	it("found: download -> verify at 100 % -> restart, never closes itself", async () => {
 		const apply = deferred<void>();
-		const h = harness({ check: async () => found, apply: () => apply.promise });
+		const h = harness({ checkUpdate: async () => found, applyUpdate: () => apply.promise });
 		const running = h.flow.run();
 		await flush();
-		expect(h.last()).toEqual({ kind: "downloading", version: "0.2.3", pct: null });
+		expect(h.last()).toEqual({ kind: "downloading", version: "0.3.1", pct: null });
 		h.progress(40);
-		expect(h.last()).toEqual({ kind: "downloading", version: "0.2.3", pct: 40 });
+		expect(h.last()).toEqual({ kind: "downloading", version: "0.3.1", pct: 40 });
 		h.progress(100);
-		expect(h.last()).toEqual({ kind: "verifying", version: "0.2.3" });
+		expect(h.last()).toEqual({ kind: "verifying", version: "0.3.1" });
 		apply.resolve();
 		await running;
-		expect(h.last()).toEqual({ kind: "restarting", version: "0.2.3" });
+		expect(h.last()).toEqual({ kind: "restarting", version: "0.3.1" });
 		expect(h.calls).toEqual(["off"]);
 	});
 
 	it("failed verification: error screen waits for a click", async () => {
-		const h = harness({ check: async () => found, apply: async () => Promise.reject("update.err.signature") });
+		const h = harness({ checkUpdate: async () => found, applyUpdate: async () => Promise.reject("update.err.signature") });
 		await h.flow.run();
 		expect(h.last()).toEqual({ kind: "error", key: "update.err.signature" });
 		expect(h.calls).not.toContain("done");
@@ -93,7 +100,7 @@ describe("SplashFlow", () => {
 
 	it("skip while downloading: cancels, closes once, shows no error", async () => {
 		const apply = deferred<void>();
-		const h = harness({ check: async () => found, apply: () => apply.promise });
+		const h = harness({ checkUpdate: async () => found, applyUpdate: () => apply.promise });
 		const running = h.flow.run();
 		await flush();
 		h.progress(30);
@@ -102,15 +109,15 @@ describe("SplashFlow", () => {
 		apply.reject("update.err.cancelled");
 		await running;
 		expect(h.calls.filter((c) => c === "cancel" || c === "done")).toEqual(["cancel", "done"]);
-		expect(h.last()).toEqual({ kind: "downloading", version: "0.2.3", pct: 30 });
+		expect(h.last()).toEqual({ kind: "downloading", version: "0.3.1", pct: 30 });
 	});
 
 	it("skip while checking: a late update is not installed", async () => {
 		const check = deferred<typeof found | null>();
 		let applied = false;
 		const h = harness({
-			check: () => check.promise,
-			apply: async () => {
+			checkUpdate: () => check.promise,
+			applyUpdate: async () => {
 				applied = true;
 			}
 		});

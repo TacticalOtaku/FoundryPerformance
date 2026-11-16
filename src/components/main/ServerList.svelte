@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { t } from "../../lib/i18n.svelte";
-	import { hostOf, lastRun, STATUS_TONE } from "../../lib/intent";
-	import { slotStatus } from "../../lib/status";
 	import { app } from "../../lib/store.svelte";
 	import Icon from "../tactile/Icon.svelte";
 	import IconButton from "../tactile/IconButton.svelte";
@@ -21,16 +19,15 @@
 	<div class="lbl"><Label>{t("main.slots")}</Label></div>
 	<div class="rows">
 		{#each dto.servers as s (s.id)}
-			{@const status = slotStatus(s, app.probes[s.id])}
-			{@const run = lastRun(dto.stats[s.id])}
+			{@const view = app.slotView(s)}
 			{@const selected = s.id === app.selectedId}
 			<div class="row" class:on={selected}>
 				<button type="button" class="pick" aria-current={selected} onclick={(e) => pick(e, s.id, selected)} ondblclick={() => app.launch(false)}>
-					<span class="dot {STATUS_TONE[status]}" class:hollow={status !== "running" && status !== "idle"} aria-hidden="true"></span>
+					<span class="dot {view.tone}" class:hollow={view.status !== "running" && view.status !== "idle"} aria-hidden="true"></span>
 					<span class="text">
 						<span class="name">{s.name}</span>
-						<span class="meta" class:bad={status === "stopped"}>
-							{hostOf(s.url)} · {status === "stopped" || !run ? t(`status.${status}`) : `${run.fps} FPS`}
+						<span class="meta" class:bad={view.status === "stopped"}>
+							{view.host} · {view.status === "stopped" || !view.run ? t(`status.${view.status}`) : `${view.run.fps} FPS`}
 						</span>
 					</span>
 				</button>

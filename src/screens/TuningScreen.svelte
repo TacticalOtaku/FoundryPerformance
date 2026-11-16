@@ -13,24 +13,23 @@
 	import Swatches from "../components/tactile/Swatches.svelte";
 	import Toggle from "../components/tactile/Toggle.svelte";
 	import { t } from "../lib/i18n.svelte";
-	import { countOverrides, overridesFor, resolved } from "../lib/levers";
 	import { openWindow } from "../lib/motion";
-	import { app } from "../lib/store.svelte";
+	import { app, LEVER_LIMITS } from "../lib/store.svelte";
 	import { tipFor } from "../lib/tooltip.svelte";
 	import type { TipKey } from "../lib/tips";
 	import type { AngleBackend, Levers, LocalePref, ProfileId, ThemePref, VideoMode } from "../lib/types";
 
 	const dto = $derived(app.dto!);
-	const scope = $derived(app.scope);
-	const l = $derived(resolved(dto, scope));
-	const over = $derived(overridesFor(dto, scope));
-	const n = $derived(countOverrides(over));
+	const tuning = $derived(app.tuning);
+	const scope = $derived(tuning.scope);
+	const l = $derived(tuning.resolved);
+	const over = $derived(tuning.overrides);
+	const n = $derived(tuning.overrideCount);
 	const mod = (...keys: (keyof Levers)[]) => keys.some((k) => over[k] !== undefined && over[k] !== null);
-	const server = $derived(scope.kind === "server" ? (dto.servers.find((s) => s.id === scope.id) ?? null) : null);
+	const server = $derived(tuning.server);
 	const title = $derived(server ? server.name : t("tuning.global"));
 	// Переключатель уровня: общие настройки (движок, вид) и правки выбранного сервера
-	const selected = $derived(dto.servers.find((s) => s.id === app.selectedId) ?? null);
-	const scopeServer = $derived(server ?? selected);
+	const scopeServer = $derived(tuning.scopeServer);
 	// Без выбранного сервера второй сегмент виден, но недоступен — уровень всё равно понятен
 	const scopeOptions = $derived([
 		{ value: "global", label: t("tuning.global") },
@@ -52,7 +51,7 @@
 		(["quality", "balance", "potato"] as ProfileId[]).map((p) => ({ value: p as ProfileId | "inherit", label: t(`profile.${p}.long`) }))
 	);
 	const profileOptions = $derived(server ? [{ value: "inherit" as const, label: t("profile.inherit") }, ...profiles] : profiles);
-	const profileValue = $derived<ProfileId | "inherit">(server ? (server.profile ?? "inherit") : dto.settings.profile);
+	const profileValue = $derived(tuning.profileValue);
 
 	const videoOptions = $derived((["play", "pauseUnfocused", "static"] as VideoMode[]).map((v) => ({ value: v, label: t(`video.${v}`) })));
 	const perfOptions = [3, 2, 1, 0].map((v) => ({ value: v, label: ["LOW", "MED", "HIGH", "MAX"][v] }));
@@ -97,22 +96,22 @@
 							label={t("tuning.resolution")}
 							tip={tipFor("resolution", t("tuning.resolution"))}
 							value={l.resMin}
-							min={0.4}
-							max={1}
-							step={0.05}
+							min={LEVER_LIMITS.res.uiMin}
+							max={LEVER_LIMITS.res.uiMax}
+							step={LEVER_LIMITS.res.step}
 							format={(v) => (l.adaptive ? `${pct(v)}–${pct(l.resMax)}` : pct(v))}
 							modified={mod("resMin", "resMax")}
-							onchange={(v) => app.setLevers(l.adaptive ? { resMin: Math.min(v, l.resMax) } : { resMin: v, resMax: v })}
+							onchange={(v) => app.setResolution(v)}
 						/>
 						<Slider
 							label={t("tuning.maxFps")}
 							tip={tipFor("maxFps", t("tuning.maxFps"))}
 							value={l.maxFps}
-							min={20}
-							max={240}
-							step={1}
-							ticks={[60, 144, 240]}
-							presets={[60, 144, 240]}
+							min={LEVER_LIMITS.maxFps.uiMin}
+							max={LEVER_LIMITS.maxFps.uiMax}
+							step={LEVER_LIMITS.maxFps.step}
+							ticks={[...LEVER_LIMITS.maxFps.ticks]}
+							presets={[...LEVER_LIMITS.maxFps.presets]}
 							editable
 							inputLabel={t("tuning.fpsInput")}
 							format={(v) => String(v)}
@@ -123,9 +122,9 @@
 							label={t("tuning.unfocused")}
 							tip={tipFor("unfocused", t("tuning.unfocused"))}
 							value={l.unfocusedFps}
-							min={5}
-							max={60}
-							step={5}
+							min={LEVER_LIMITS.unfocusedFps.uiMin}
+							max={LEVER_LIMITS.unfocusedFps.uiMax}
+							step={LEVER_LIMITS.unfocusedFps.step}
 							format={(v) => String(v)}
 							modified={mod("unfocusedFps")}
 							onchange={(v) => app.setLevers({ unfocusedFps: v })}

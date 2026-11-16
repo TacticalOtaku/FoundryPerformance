@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from "svelte";
-	import { windowControls } from "../lib/api";
+	import { backend } from "../lib/api";
 	import { t } from "../lib/i18n.svelte";
 	import Icon from "./tactile/Icon.svelte";
 	import IconButton from "./tactile/IconButton.svelte";
@@ -12,7 +12,7 @@
 	$effect(() => {
 		let off: (() => void) | undefined;
 		let gone = false;
-		windowControls.onMaximized((on) => (maximized = on)).then((u) => (gone ? u() : (off = u)));
+		backend.onMaximized((on) => (maximized = on)).then((u) => (gone ? u() : (off = u)));
 		return () => {
 			gone = true;
 			off?.();
@@ -27,9 +27,9 @@
 	<span class="sp" data-tauri-drag-region></span>
 	{#if end}{@render end()}{/if}
 	<span class="wb">
-		<IconButton label={t("window.minimize")} size={30} onclick={() => windowControls.minimize()}><Icon name="minimize" /></IconButton>
-		<IconButton label={t(maximized ? "window.restore" : "window.maximize")} size={30} onclick={() => windowControls.toggleMaximize()}><Icon name="maximize" /></IconButton>
-		<IconButton label={t("window.close")} size={30} danger onclick={() => windowControls.close()}><Icon name="close" /></IconButton>
+		<IconButton label={t("window.minimize")} size={30} onclick={() => backend.minimize()}><Icon name="minimize" /></IconButton>
+		<IconButton label={t(maximized ? "window.restore" : "window.maximize")} size={30} onclick={() => backend.toggleMaximize()}><Icon name="maximize" /></IconButton>
+		<IconButton label={t("window.close")} size={30} danger onclick={() => backend.close()}><Icon name="close" /></IconButton>
 	</span>
 </header>
 

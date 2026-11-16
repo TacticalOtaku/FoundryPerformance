@@ -14,7 +14,7 @@
 	import TuningScreen from "./screens/TuningScreen.svelte";
 	import UninstallScreen from "./screens/UninstallScreen.svelte";
 	import Kit from "./dev/Kit.svelte";
-	import { setupApi, windowLabel } from "./lib/api";
+	import { backend } from "./lib/api";
 	import { setLocale, t } from "./lib/i18n.svelte";
 	import { accentStyle, DEFAULT_ACCENT } from "./lib/palette";
 	import { app } from "./lib/store.svelte";
@@ -23,13 +23,13 @@
 	// Режим решает Rust: тот же exe — установщик, удаление или лаунчер; сплэш — отдельное окно
 	let mode = $state<ModeDto | null>(null);
 	let splash = $state(false);
-	void windowLabel().then(async (label) => {
+	void backend.windowLabel().then(async (label) => {
 		if (label === "splash") {
 			splash = true;
 			await app.loadForSplash();
 			return;
 		}
-		const m = await setupApi.getMode();
+		const m = await backend.getMode();
 		mode = m;
 		if (m.mode === "launcher") void app.load();
 		else setLocale(navigator.language.toLowerCase().startsWith("ru") ? "ru" : "en");

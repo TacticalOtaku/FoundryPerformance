@@ -1,18 +1,28 @@
-import { configFor, initAdaptive, refreshFromDeltas, resetTimers, stepAdaptive } from "./adaptive";
-import { runBench } from "./bench";
+import { refreshFromDeltas } from "./adaptive";
 import { ipcStatus, send, toggleFullscreen } from "./bridge";
-import { clearPreboot, coreValues, defaultValues, reconcile, writePreboot } from "./client-settings";
 import { AGENT_VERSION, collectDiag, downloadDiag } from "./diag";
 import { g } from "./foundry";
-import { FrameStats, summarize } from "./fps-meter";
 import { Hud } from "./hud";
-import { fmt, strings } from "./i18n";
-import { setUiBlur } from "./levers/blur";
-import { FocusThrottle } from "./levers/focus";
-import { CanvasResolution } from "./levers/resolution";
-import { collectVideos, VideoController } from "./levers/video";
-import { moduleValues } from "./modules";
+import { strings } from "./i18n";
+import { collectVideos } from "./levers/video";
+import { type AgentHost, AgentRuntime } from "./runtime";
 import type { Boot, ProfileId } from "./types";
+
+const NO_BLUR_ID = "fp-no-blur";
+const NO_BLUR_CSS = "*,*::before,*::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}";
+
+function applyUiBlur(enabled: boolean): void {
+	const existing = document.getElementById(NO_BLUR_ID);
+	if (enabled) {
+		existing?.remove();
+		return;
+	}
+	if (existing) return;
+	const style = document.createElement("style");
+	style.id = NO_BLUR_ID;
+	style.textContent = NO_BLUR_CSS;
+	(document.head ?? document.documentElement).appendChild(style);
+}
 
 function whenDom(fn: () => void): void {
 	if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn, { once: true });
@@ -29,11 +39,6 @@ function waitFor<T>(get: () => T | undefined, fn: (v: T) => void, timeoutMs = 12
 	tick();
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/** Страница Foundry: её модульные скрипты выполнены к DOMContentLoaded. Чужие сайты из ссылок чата — нет. */
-const isFoundry = () => Boolean(g.foundry || g.Hooks);
-
 /** ~40 кадров requestAnimationFrame → частота монитора (браузер не рисует чаще). */
 function measureRefresh(frames = 40): Promise<number> {
 	return new Promise((resolve) => {
@@ -49,264 +54,75 @@ function measureRefresh(frames = 40): Promise<number> {
 	});
 }
 
-function start(boot: Boot): void {
-	const t = strings(boot.locale);
-	let profileId: ProfileId = boot.profileId;
-	let levers = boot.presets[profileId];
-	let refreshHz = Infinity;
-	let adaptiveCfg = configFor(levers);
-	let adaptive = initAdaptive(adaptiveCfg);
-	let readyAt = 0;
-	let skipped = 0;
-	let benchSamples: number[] | null = null;
-	let tickerAttached = false;
-	// Базовый замер: геттеры ниже отдают «ничего», и рычаги становятся no-op
-	let measureOnly = boot.measureOnly;
-	const stats = new FrameStats(4096);
-	const sparkline: number[] = [];
-
-	const resolution = new CanvasResolution(
-		() => (measureOnly ? undefined : g.canvas?.app?.renderer),
-		() => (levers.pixelRatioScaling ? window.devicePixelRatio || 1 : 1),
-		window
-	);
-	const video = new VideoController(() => (measureOnly ? [] : collectVideos(g.canvas)));
-	const focus = new FocusThrottle(() => (measureOnly ? undefined : g.canvas?.app?.ticker), levers.maxFps, levers.unfocusedFps);
-
-	// Фаза 1: до запуска Foundry — и только на её страницах
-	whenDom(() => {
-		if (!isFoundry()) return;
-		if (!measureOnly) {
-			try {
-				writePreboot(localStorage, coreValues(levers));
-			} catch {
-				/* localStorage недоступен — reconcile применит на ready */
-			}
-			setUiBlur(document, levers.uiBlur);
-		}
-		const probe = document.createElement("canvas").getContext("webgl2");
-		if (!probe && !sessionStorage.getItem("fp.nowebgl")) {
-			sessionStorage.setItem("fp.nowebgl", "1");
-			send({ kind: "webglLost", early: true });
-		}
-		// Пока сцены нет, кадры браузера идут с частотой монитора, а не игры
-		void measureRefresh().then((hz) => {
-			refreshHz = hz;
-			adaptiveCfg = configFor(levers, hz);
-		});
-	});
-
-	let hud: Hud | null = null;
-	const ensureHud = () => (hud ??= new Hud(t, { onProfile: (id) => void setProfile(id, true), onBench: () => void bench() }));
-
-	function onKey(e: KeyboardEvent): void {
-		if (e.key !== "F9" && e.key !== "F10" && e.key !== "F11") return;
-		e.preventDefault();
-		e.stopPropagation();
-		// Удержание клавиши — одно действие, а не серия диагностик и переключений экрана
-		if (e.repeat) return;
-		if (e.key === "F9" && e.shiftKey) ensureHud().toggleMenu();
-		else if (e.key === "F9") ensureHud().toggle();
-		else if (e.key === "F10") void diag();
-		else toggleFullscreen();
-	}
-
-	const targetScale = () => (levers.adaptive ? adaptive.scale : levers.resMax);
-
-	async function applySettings(): Promise<void> {
-		if (!g.game?.settings) return;
-		const isActive = (id: string) => Boolean(g.game.modules?.get(id)?.active);
-		const values = measureOnly
-			? defaultValues(g.game, Object.keys(coreValues(levers)))
-			: { ...coreValues(levers), ...moduleValues(isActive, levers) };
-		const r = await reconcile(g.game, values);
-		skipped = r.missing.length + r.failed.length;
-		if (skipped > 0) console.info("[Foundry Performance] skipped settings", r);
-	}
-
-	function attachTicker(): void {
-		const ticker = g.canvas?.app?.ticker;
-		if (!ticker || tickerAttached) return;
-		tickerAttached = true;
-		ticker.add(() => {
-			const ms = ticker.deltaMS;
-			stats.push(ms);
-			benchSamples?.push(ms);
-		});
-		const view = g.canvas.app.renderer?.view ?? g.canvas.app.canvas;
-		view?.addEventListener?.("webglcontextlost", () => send({ kind: "webglLost", early: performance.now() - readyAt < 60000 }));
-		focus.apply();
-	}
-
-	function loop(): void {
-		const window1s = Math.max(10, Math.round(levers.maxFps));
-		const avg = stats.avgMs(window1s);
-		// Опрос, а не blur/focus: клик во встроенный iframe (видео, PDF в журнале) даёт blur окну,
-		// хотя игрой продолжают пользоваться
-		const focused = document.hasFocus() && !document.hidden;
-		if (focused !== focus.focused) onFocusChange(focused);
-		if (levers.adaptive && !measureOnly && focus.focused && avg > 0) {
-			const next = stepAdaptive(adaptive, adaptiveCfg, avg, performance.now());
-			if (next.scale !== adaptive.scale) resolution.apply(next.scale);
-			adaptive = next;
-		}
-		if (avg > 0) {
-			sparkline.push(1000 / avg);
-			if (sparkline.length > 40) sparkline.shift();
-		}
-		hud?.update({
-			fps: avg > 0 ? 1000 / avg : 0,
-			low1: summarize(stats.recent(window1s * 5)).low1,
-			ms: avg,
-			res: resolution.scale,
-			profile: measureOnly ? null : profileId,
-			spark: sparkline
-		});
-	}
-
-	function sessionReport(): void {
-		if (measureOnly || !focus.focused || stats.size < 60) return;
-		const s = summarize(stats.recent(Math.round(levers.maxFps * 30)));
-		send({ kind: "session", avg: s.avg, low1: s.low1, profile: profileId });
-	}
-
-	function onFocusChange(focused: boolean): void {
-		focus.setFocused(focused);
-		video.setFocused(focused);
-		adaptive = resetTimers(adaptive);
-	}
-
-	async function setProfile(id: ProfileId, persist: boolean): Promise<void> {
-		measureOnly = false;
-		profileId = id;
-		levers = boot.presets[id];
-		adaptiveCfg = configFor(levers, refreshHz);
-		adaptive = initAdaptive(adaptiveCfg);
-		try {
-			writePreboot(localStorage, coreValues(levers));
-		} catch {
-			/* см. фазу 1 */
-		}
-		setUiBlur(document, levers.uiBlur);
-		video.setMode(levers.video);
-		await applySettings();
-		// После настроек: смена core.maxFPS могла переписать тикеру наш потолок
-		focus.setFps(levers.maxFps, levers.unfocusedFps);
-		resolution.apply(targetScale());
-		if (skipped > 0) hud?.status(fmt(t.missing, { n: skipped }));
-		if (persist) send({ kind: "profileChanged", profile: id });
-	}
-
-	async function bench(): Promise<void> {
-		// Второй запуск поверх идущего забрал бы его кадры, и оба вернули бы 0 FPS
-		if (benchSamples) return;
-		const h = ensureHud();
-		if (!g.canvas?.ready || !g.canvas?.dimensions) {
-			h.status(t.benchNoScene);
-			return;
-		}
-		h.status(t.benchRunning);
-		const recorder = {
-			start: () => {
-				benchSamples = [];
-			},
-			stop: () => {
-				const s = benchSamples ?? [];
-				benchSamples = null;
-				return s;
-			}
-		};
-		let out: { avg: number; low1: number; min: number };
-		try {
-			out = await runBench(g.canvas, recorder);
-		} catch {
-			benchSamples = null;
-			h.status(t.benchNoScene);
-			return;
-		}
-		h.status(fmt(t.benchDone, { avg: Math.round(out.avg), low: Math.round(out.low1), min: Math.round(out.min) }));
-		if (!measureOnly) send({ kind: "bench", avg: out.avg, low1: out.low1, min: out.min, profile: profileId });
-	}
-
-	let diagRunning = false;
-	async function diag(): Promise<void> {
-		// Вторая диагностика запомнила бы пробные 80% как «прежний» масштаб и оставила их
-		if (diagRunning) return;
-		diagRunning = true;
-		try {
-			await diagOnce();
-		} finally {
-			diagRunning = false;
-		}
-	}
-
-	async function diagOnce(): Promise<void> {
-		const r = g.canvas?.app?.renderer;
-		const before = { scale: resolution.scale, rendererResolution: r?.resolution };
-		let resolutionTest: unknown = "no-renderer";
-		if (r && !measureOnly) {
-			resolution.apply(0.8);
-			await sleep(700);
-			resolutionTest = { target: resolution.targetFor(0.8), after: r.resolution, screen: [r.screen?.width, r.screen?.height] };
-			resolution.apply(before.scale);
-		}
-		downloadDiag(
-			collectDiag({
-				fp: { profileId, measureOnly, levers, adaptive, skipped, before, resolutionTest, tickerAttached, bootProfiles: Object.keys(boot.presets), ipc: ipcStatus() }
-			})
-		);
-		ensureHud().status(t.diagSaved);
-	}
-
-	waitFor(
-		() => g.Hooks,
-		(hooks) => {
-			window.addEventListener("keydown", onKey, true);
-			hooks.once("ready", async () => {
-				readyAt = performance.now();
-				// Настоящий адрес Foundry: у хостингов он отличается от страницы входа.
-				// Без query — там бывают токены сессии.
-				send({ kind: "foundryUrl", url: location.origin + location.pathname });
-				video.setMode(levers.video);
-				if (!measureOnly) setUiBlur(document, levers.uiBlur);
-				await applySettings();
-				attachTicker();
-				resolution.apply(targetScale());
-				setInterval(loop, 250);
-				setInterval(sessionReport, 30000);
-				setInterval(() => video.sync(), 2000);
-				if (skipped > 0) ensureHud().status(fmt(t.missing, { n: skipped }));
-			});
-			hooks.on("canvasReady", () => {
-				attachTicker();
-				// Foundry при подготовке сцены выставляет тикеру свой maxFPS (≤ 60) — возвращаем наш потолок
-				focus.apply();
-				resolution.apply(targetScale());
-				video.sync();
-			});
-		}
-	);
-
-	g.__FP__ = {
-		version: AGENT_VERSION,
-		toggleHud: () => ensureHud().toggle(),
-		setProfile: (id: ProfileId) => setProfile(id, true),
-		bench,
-		diag
+function createBrowserHost(locale: Boot["locale"]): AgentHost {
+	const t = strings(locale);
+	return {
+		isFoundry: () => Boolean(g.foundry || g.Hooks),
+		pageUrl: () => location.origin + location.pathname,
+		hasWebgl2: () => Boolean(document.createElement("canvas").getContext("webgl2")),
+		isFocused: () => document.hasFocus() && !document.hidden,
+		devicePixelRatio: () => window.devicePixelRatio || 1,
+		now: () => performance.now(),
+		wait: (ms) => new Promise((r) => setTimeout(r, ms)),
+		measureRefresh: () => measureRefresh(),
+		storage: localStorage,
+		session: sessionStorage,
+		setUiBlur: applyUiBlur,
+		settingsHost: () => {
+			const game = g.game;
+			if (!game?.settings) return undefined;
+			return {
+				settings: game.settings,
+				isModuleActive: (id: string) => Boolean(game.modules?.get(id)?.active)
+			};
+		},
+		renderer: () => g.canvas?.app?.renderer,
+		triggerResize: () => void window.dispatchEvent(new Event("resize")),
+		ticker: () => g.canvas?.app?.ticker,
+		onWebglContextLost: (cb) => {
+			const view = g.canvas?.app?.renderer?.view ?? g.canvas?.app?.canvas;
+			view?.addEventListener?.("webglcontextlost", cb);
+		},
+		videos: () => collectVideos(g.canvas),
+		benchScene: () => {
+			const canvas = g.canvas;
+			if (!canvas?.ready || !canvas?.dimensions) return undefined;
+			const rect = canvas.dimensions.sceneRect ?? canvas.dimensions.rect;
+			return {
+				rect,
+				animatePan: (opts) => canvas.animatePan(opts)
+			};
+		},
+		createHud: (handlers) => new Hud(t, handlers),
+		send,
+		toggleFullscreen,
+		saveDiag: (fp) => downloadDiag(collectDiag({ fp: { ...fp, ipc: ipcStatus() } })),
+		every: (ms, fn) => void setInterval(fn, ms)
 	};
 }
 
 const boot = g.__FP_BOOT__ as Boot | undefined;
 // Окно игры открывает и чужие сайты — им незачем видеть id сервера и профили
 delete g.__FP_BOOT__;
-if (boot?.safe) {
-	// Безопасный режим: только убрать наши core-настройки, чтобы Foundry взяла свои умолчания
-	whenDom(() => {
-		if (!isFoundry()) return;
-		try {
-			clearPreboot(localStorage);
-		} catch {
-			/* localStorage недоступен — убирать нечего */
-		}
-	});
-} else if (boot && !g.__FP__) start(boot);
+
+if (boot && (boot.safe || !g.__FP__)) {
+	const runtime = new AgentRuntime(boot, createBrowserHost(boot.locale));
+	whenDom(() => runtime.onDomReady());
+	if (!runtime.safe) {
+		waitFor(
+			() => g.Hooks,
+			(hooks) => {
+				window.addEventListener("keydown", (e) => runtime.onKey(e), true);
+				hooks.once("ready", () => void runtime.onReady());
+				hooks.on("canvasReady", () => runtime.onCanvasReady());
+			}
+		);
+		g.__FP__ = {
+			version: AGENT_VERSION,
+			toggleHud: () => runtime.toggleHud(),
+			setProfile: (id: ProfileId) => runtime.setProfile(id, true),
+			bench: () => runtime.bench(),
+			diag: () => runtime.diag()
+		};
+	}
+}

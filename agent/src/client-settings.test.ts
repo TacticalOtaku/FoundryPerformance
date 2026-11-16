@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CORE_KEYS, coreValues, defaultValues, reconcile, type SettingsHost, writePreboot } from "./client-settings";
+import { CORE_KEYS, coreValues, defaultValues, moduleValues, reconcile, type SettingsHost, writePreboot } from "./client-settings";
 import type { Levers } from "./types";
 
 const levers: Levers = {
@@ -93,5 +93,14 @@ describe("defaultValues", () => {
 	it("returns Foundry defaults for registered keys only", () => {
 		const { game } = fakeGame({ "core.maxFPS": 30 });
 		expect(defaultValues(game, ["core.maxFPS", "core.nope"])).toEqual({ "core.maxFPS": "default-of-core.maxFPS" });
+	});
+});
+
+describe("moduleValues", () => {
+	it("includes settings only for active modules", () => {
+		const base = { ...levers, sequencer: false, fxmaster: false };
+		expect(moduleValues((id) => id === "sequencer", base)).toEqual({ "sequencer.effectsEnabled": false });
+		expect(moduleValues((id) => id === "fxmaster", { ...base, fxmaster: true })).toEqual({ "fxmaster.enable": true });
+		expect(moduleValues(() => false, base)).toEqual({});
 	});
 });

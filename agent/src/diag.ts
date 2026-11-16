@@ -1,5 +1,5 @@
 import { g } from "./foundry";
-import { collectVideos } from "./levers/video";
+import { collectVideos, probeVideoMesh } from "./levers/video";
 
 export const AGENT_VERSION = "0.3.0";
 
@@ -22,20 +22,6 @@ function rendererName(renderer: any): string | undefined {
 	} catch {
 		return undefined;
 	}
-}
-
-/** Где у первого видео-меша лежит источник — чтобы поправить collectVideos, если путь в v14 другой. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function probeVideoMesh(canvas: any): unknown {
-	const first = canvas?.primary?.videoMeshes?.values?.().next?.().value;
-	if (!first) return null;
-	const kind = (v: unknown) => (v === undefined || v === null ? null : ((v as object).constructor?.name ?? typeof v));
-	return {
-		mesh: kind(first),
-		sourceElement: kind(first.sourceElement),
-		baseTextureResourceSource: kind(first.texture?.baseTexture?.resource?.source),
-		textureSourceResource: kind(first.texture?.source?.resource)
-	};
 }
 
 export function collectDiag(extra: Record<string, unknown>): Record<string, unknown> {

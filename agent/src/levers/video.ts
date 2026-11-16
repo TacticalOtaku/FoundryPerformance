@@ -24,6 +24,20 @@ export function collectVideos(canvas: any): HTMLVideoElement[] {
 	return [...out];
 }
 
+/** Где у первого видео-меша лежит источник — чтобы поправить collectVideos, если путь в v14 другой. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function probeVideoMesh(canvas: any): unknown {
+	const first = canvas?.primary?.videoMeshes?.values?.().next?.().value;
+	if (!first) return null;
+	const kind = (v: unknown) => (v === undefined || v === null ? null : ((v as object).constructor?.name ?? typeof v));
+	return {
+		mesh: kind(first),
+		sourceElement: kind(first.sourceElement),
+		baseTextureResourceSource: kind(first.texture?.baseTexture?.resource?.source),
+		textureSourceResource: kind(first.texture?.source?.resource)
+	};
+}
+
 export class VideoController {
 	private mode: VideoMode = "play";
 	private focused = true;

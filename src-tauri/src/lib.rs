@@ -11,35 +11,25 @@ pub mod store;
 pub mod tray;
 pub mod windows;
 
-use installer::mode::Mode;
+use installer::{Installer, Mode, Updater};
 use launcher::Launcher;
 use tauri::{Manager, RunEvent, WindowEvent};
 use windows::{CloseDecision, WindowCoordinator};
 
 pub fn run() {
     // Без WebView2 окно не нарисовать — спрашиваем системным диалогом и выходим
-    if !installer::webview2::installed() {
-        installer::webview2::prompt_download(launcher::system_locale());
+    if !installer::win::webview2_installed() {
+        installer::win::prompt_webview2(launcher::system_locale());
         return;
     }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let exe = std::env::current_exe().ok();
-    let exe_dir = exe.as_deref().and_then(std::path::Path::parent).map(std::path::Path::to_path_buf).unwrap_or_default();
-    let mode = installer::mode::detect(&args, &exe_dir, cfg!(debug_assertions));
+    let installer = Installer::production(&args, exe.as_deref());
+    let mode = installer.mode();
     if mode == Mode::Launcher {
-        if args.iter().any(|a| a == installer::commands::UPDATED_FLAG) {
-            installer::procs::wait_until_alone(&exe_dir, std::time::Duration::from_secs(5));
-        }
-        if let Some(e) = &exe {
-            installer::selfreplace::cleanup(e);
-        }
+        installer.finish_update_startup(&args, exe.as_deref());
         // Кэш, который в прошлый раз был занят WebView2: окна игры ещё нет — файлы свободны
         cache::finish_pending(&store::engine_dir());
-        // Первый запуск после автообновления: версия в install.json и «Приложениях Windows»
-        let version = installer::version::current().to_string();
-        if installer::layout::bump_manifest(&exe_dir, &version).unwrap_or(false) {
-            installer::registry::set_version(&version);
-        }
     }
 
     let mut builder = tauri::Builder::default();
@@ -58,8 +48,8 @@ pub fn run() {
     let app = builder
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
-            app.manage(installer::commands::ModeState { mode });
-            app.manage(installer::commands::UpdateState::default());
+            app.manage(installer);
+            app.manage(Updater::production());
             app.manage(WindowCoordinator::new(store::Store::default_dir(), &args));
             let launcher = Launcher::new(store::Store::new(store::Store::default_dir()));
             let lang = launcher.lang();
@@ -81,7 +71,7 @@ pub fn run() {
                 }
             }
             (label, WindowEvent::CloseRequested { api, .. }) => {
-                let applying = window.try_state::<installer::commands::UpdateState>().is_some_and(|s| s.applying());
+                let applying = window.try_state::<Updater>().is_some_and(|s| s.applying());
                 let decision = window
                     .try_state::<WindowCoordinator>()
                     .map_or(CloseDecision::Ignore, |coord| coord.close_decision(label, applying));

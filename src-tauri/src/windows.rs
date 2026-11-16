@@ -1,7 +1,6 @@
 //! Координатор окон и их положений: жизненный цикл сплэша, лаунчера, окон игры,
 //! возврат из трея и запоминание координат на мониторах Windows.
-use crate::installer::commands::UPDATED_FLAG;
-use crate::installer::version;
+use crate::installer::{Version, UPDATED_FLAG};
 use crate::launcher::{self, LaunchMode, Launcher};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -226,7 +225,7 @@ impl CoordinatorInner {
             Some((url, mode)) => AfterSplash::Adhoc { url, mode },
             None => AfterSplash::Launcher,
         };
-        let updated = args.iter().any(|a| a == UPDATED_FLAG).then(|| version::current().to_string());
+        let updated = args.iter().any(|a| a == UPDATED_FLAG).then(|| Version::current().to_string());
         Self { saved, popup: None, after_splash, updated }
     }
 
@@ -917,7 +916,7 @@ mod tests {
     fn splash_and_update_transitions_preserve_fallback_and_order() {
         // Обычный старт: splash -> main, затем restart_to_update: main -> splash
         let (_d, l, c) = make_launcher_and_coord(&["--portable", "--updated"]);
-        assert_eq!(c.take_updated(), Some(version::current().to_string()));
+        assert_eq!(c.take_updated(), Some(Version::current().to_string()));
         assert_eq!(c.take_updated(), None);
 
         let host = FakeHost::with_open(&[SPLASH]);

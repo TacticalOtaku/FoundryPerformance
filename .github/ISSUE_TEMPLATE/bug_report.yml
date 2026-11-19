@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a bug or crash in FoundryPerformance
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: input
+    id: app_version
+    attributes:
+      label: FoundryPerformance version
+      placeholder: "e.g. 0.3.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: os_version
+    attributes:
+      label: Windows version
+      options:
+        - Windows 11
+        - Windows 10
+    validations:
+      required: true
+  - type: input
+    id: foundry_version
+    attributes:
+      label: Foundry VTT version
+      placeholder: "e.g. 14.367"
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU & WebView2 / ANGLE backend
+      placeholder: "e.g. GTX 1660 / D3D11"
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the issue, expected behavior, and steps to reproduce.
+    validations:
+      required: true
+  - type: textarea
+    id: diag
+    attributes:
+      label: Diagnostic snapshot (F10) or logs
+      description: Optionally paste relevant parts of fp-diag-*.json.
+      render: json

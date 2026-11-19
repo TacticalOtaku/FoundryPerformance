@@ -13,3 +13,10 @@ app-icon.png
 # правила для ИИ-агентов, не публикуются
 CLAUDE.md
 CLAUDE.local.md
+AGENTS.md
+docs/agents/
+docs/plans/
+docs/superpowers/
+release-notes/
+.claude/
+.DS_Store

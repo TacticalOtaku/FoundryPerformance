@@ -1,140 +1,149 @@
 <div align="center">
 
+**English** · [Русский](README.ru.md)
+
 <img src="app-icon.svg" width="96" height="96" alt="Foundry Performance" />
 
 # Foundry Performance
 
-**Быстрый клиент для Foundry VTT (Windows), который выжимает максимум FPS из слабых видеокарт**
+**A lightweight Windows client for Foundry VTT that squeezes maximum FPS out of low-end GPUs**
 
-Отдельно настроенный движок WebView2 + внутристраничный агент оптимизации в реальном времени.  
-Сделан для тяжёлых миров и сцен на **Foundry VTT v14**.
+Dedicated WebView2 engine profile + real-time in-page optimization agent.  
+Built for heavy worlds and scenes on **Foundry VTT v14**.
 
-[![Latest Release](https://img.shields.io/github/v/release/TacticalOtaku/FoundryPerformance?style=flat-square&label=%D0%A0%D0%B5%D0%BB%D0%B8%D0%B7&color=E08256)](https://github.com/TacticalOtaku/FoundryPerformance/releases/latest)
-[![CI](https://github.com/TacticalOtaku/FoundryPerformance/actions/workflows/ci.yml/badge.svg)](https://github.com/TacticalOtaku/FoundryPerformance/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/TacticalOtaku/FoundryPerformance?style=flat-square&label=Release&color=E08256)](https://github.com/TacticalOtaku/FoundryPerformance/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/TacticalOtaku/FoundryPerformance/ci.yml?style=flat-square&label=CI)](https://github.com/TacticalOtaku/FoundryPerformance/actions/workflows/ci.yml)
 ![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011%20(WebView2)-262D40?style=flat-square)
 ![Stack](https://img.shields.io/badge/Tauri%20v2-Svelte%205%20%C2%B7%20Rust-343D58?style=flat-square)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-3b82f6?style=flat-square)](LICENSE)
 
-[Возможности](#возможности) • [Установка](#установка) • [Профили](#профили-производительности) • [Горячие клавиши](#в-игре) • [CLI](#командная-строка) • [Сборка](#разработка-и-сборка)
+[Features](#features) • [Installation](#installation) • [Profiles](#performance-profiles) • [In-Game Hotkeys](#in-game-hotkeys) • [CLI](#command-line) • [Development](#development--build)
 
 </div>
 
 ---
 
-## Возможности
+## Features
 
-- **Изолированный движок WebView2** — запускает игру с отдельным профилем данных и флагами GPU (`ANGLE`: `D3D11` / `D3D11on12` / `GL` / `Vulkan`, GPU-растеризация, zero-copy, отключение троттлинга фона, настраиваемый дисковый кэш `1 / 2 / 4 ГБ`, доп. флаги Chromium).
-- **Умный агент внутри Foundry** — управляет разрешением рендерера PIXI (включая **адаптивное масштабирование** с учётом герцовки монитора), обходит встроенный лимит `60 FPS` до `240 FPS`, снижает нагрузку при потере фокуса, отключает размытие интерфейса (`backdrop-filter`), ставит на паузу видео-фоны и клиентские эффекты `Sequencer` / `FXMaster`.
-- **Слоты серверов и автопроверка** — показывает статус серверов (включая хостинг `Sqyre`, локальные IP и `localhost`), запоминает последний запущенный слот и последний замер FPS.
-- **Контроль видеокарты и авто-откат** — проверяет `WebGL2` и аппаратное ускорение прямо в заголовке лаунчера; при раннем краше WebGL автоматически переключает бэкенд ANGLE на следующий.
-- **Интерфейс Tactile** — светлая / тёмная / системная тема, 10 оттенков акцента, русский и английский языки, очистка кэша движка без потери логинов и настроек мира.
-- **Один процесс и автообновление** — повторный запуск передаёт управление открытому окну; обновления скачиваются с GitHub Releases и проверяются по `SHA-256` и цифровой подписи `minisign`.
-
----
-
-## Установка
-
-### Обычная установка (без прав администратора)
-
-1. Скачайте [`FoundryPerformance-x.y.z.exe`](https://github.com/TacticalOtaku/FoundryPerformance/releases/latest) и запустите — файл сам работает как установщик.
-2. Выберите папку (по умолчанию `%LOCALAPPDATA%\Programs\FoundryPerformance`) и отметьте нужные ярлыки.
-3. Запуск более нового `.exe` поверх существующей папки обновляет установленную версию; также доступно автоматическое обновление на заставке при старте.
-
-> **Удаление:** через **«Параметры → Приложения»** Windows или командой `FoundryPerformance.exe --uninstall`.  
-> Серверы, настройки и кэш сохраняются, если не отметить чекбокс «удалить также мои данные». Посторонние файлы в папке установки не трогаются.
-
-### Портативная версия
-
-Скачайте `FoundryPerformance-x.y.z-portable.zip` — внутри находится `.exe` и пустой файл-маркер `portable` рядом с ним (программа не предлагает установку и сразу открывает лаунчер).
-
-> Требуется **Microsoft Edge WebView2 Runtime** — в Windows 10/11 он обычно уже установлен; если его нет, клиент предложит скачать его при старте.
+- **Isolated WebView2 runtime** — Launches Foundry with an isolated data profile and GPU tuning flags (`ANGLE`: `D3D11` / `D3D11on12` / `GL` / `Vulkan`, GPU rasterization, zero-copy, background throttling disabled, configurable `1 / 2 / 4 GB` disk cache, and extra Chromium flags).
+- **Real-time Foundry agent** — Controls PIXI renderer resolution (including **adaptive resolution scaling** aware of monitor refresh rate), bypasses Foundry's `60 FPS` cap up to `240 FPS`, throttles background FPS when unfocused, disables heavy UI `backdrop-filter` blur, pauses video backgrounds, and toggles client-side `Sequencer` / `FXMaster` effects.
+- **Server slots & status probing** — Displays live server status (including `Sqyre` hosting, LAN IPs, and `localhost`), remembers your last launched slot, and stores the latest FPS summary.
+- **GPU check & automatic fallback** — Checks `WebGL2` and hardware acceleration in the launcher header; automatically falls back to the next ANGLE backend if an early WebGL crash occurs.
+- **Tactile UI** — Light / Dark / System themes, 10 accent colors, English & Russian UI, and one-click engine cache cleanup without wiping logins or world settings.
+- **Single instance & signed updates** — Re-launching focuses or routes URLs to the active instance; updates download from GitHub Releases and verify both `SHA-256` and `minisign` signatures.
 
 ---
 
-## Как пользоваться
+## Installation
 
-- **Слоты** — список ваших серверов. Клик выбирает слот; двойной клик, `Enter` или кнопка **«ЗАПУСК»** открывают игру (лаунчер закрывается, чтобы не занимать память, и возвращается после закрытия всех окон игры).
-- **Ручка профиля** — быстрый выбор пресета (**КАЧ**, **БАЛ**, **КРТ**) для выбранного сервера или **«РУЧ»** для возврата ваших сохранённых правок.
-- **Настройка** — тонкое управление всеми рычагами (глобально для всех серверов или поверх отдельного слота), параметрами движка, кэшем, языком и темой. Изменённые вручную параметры помечаются точкой.
-- **`Shift + ЗАПУСК`** — **безопасный режим**: запускает Foundry со штатными флагами движка и очищает управляемые `core.*`-настройки, чтобы быстро проверить поведение без оптимизаций.
+### Standard Installer (No admin rights required)
 
-### Профили производительности
+1. Download [`FoundryPerformance-x.y.z.exe`](https://github.com/TacticalOtaku/FoundryPerformance/releases/latest) and run it — the executable acts as its own installer.
+2. Choose an install folder (defaults to `%LOCALAPPDATA%\Programs\FoundryPerformance`) and select shortcuts.
+3. Running a newer `.exe` over an existing installation updates it in place; automatic updates are also checked on the startup splash screen.
 
-| Параметр | **КАЧ** (`Quality`) | **БАЛ** (`Balance`) | **КРТ** (`Potato`) |
+> **Uninstall:** via **Windows Settings → Apps** or `FoundryPerformance.exe --uninstall`.  
+> Servers, settings, and cache stay intact unless you check "also delete my data". Unrelated files in the folder are never touched.
+
+### Portable Edition
+
+Download `FoundryPerformance-x.y.z-portable.zip` — it contains the `.exe` alongside a `portable` marker file (launches straight into the launcher without installing).
+
+> Requires **Microsoft Edge WebView2 Runtime** (preinstalled on most Windows 10/11 systems; the app offers a download prompt if missing).
+
+---
+
+## Usage
+
+- **Server slots** — Click a slot to select it; double-click, press `Enter`, or click **LAUNCH** to start Foundry (the launcher closes to save memory and reopens once all game windows close).
+- **Profile knob** — Quickly switch presets (**Quality**, **Balance**, **Potato**) for the selected server, or return to **Custom** with your manual tweaks preserved.
+- **Tuning** — Fine-tune individual levers globally or per server slot, adjust engine flags, manage disk cache, and pick language/theme.
+- **`Shift + LAUNCH`** — **Safe mode**: starts Foundry with stock engine flags and resets managed `core.*` client settings to verify baseline behavior.
+
+### Performance Profiles
+
+| Setting | **Quality** | **Balance** | **Potato** |
 |---|---|---|---|
-| Режим производительности Foundry | `HIGH` (`2`) | `MED` (`1`) | `LOW` (`0`) |
-| Макс. FPS / Без фокуса | `60` / `60` | `60` / `15` | `45` / `10` |
-| Масштаб карты | `100%` (фикс.) | `70%–100%` (авто) | `55%–85%` (авто) |
-| DPI-масштабирование | Вкл | Выкл | Выкл |
-| Анимация света / зрения | Вкл / Вкл | Вкл / Выкл | Выкл / Выкл |
-| Мипмапы / Размытие UI | Вкл / Вкл | Вкл / Выкл | Выкл / Выкл |
-| Видео-фоны | Воспроизводить | Пауза вне фокуса | Статика |
-| Эффекты `Sequencer` / `FXMaster` | Вкл / Вкл | Вкл / Вкл | Выкл / Выкл |
+| Foundry performance mode | `HIGH` (`2`) | `MED` (`1`) | `LOW` (`0`) |
+| Max FPS / Unfocused | `60` / `60` | `60` / `15` | `45` / `10` |
+| Canvas resolution scale | `100%` (fixed) | `70%–100%` (auto) | `55%–85%` (auto) |
+| DPI scaling | On | Off | Off |
+| Light / Vision animations | On / On | On / Off | Off / Off |
+| Mipmaps / UI blur | On / On | On / Off | Off / Off |
+| Video backgrounds | Play | Pause unfocused | Static |
+| `Sequencer` / `FXMaster` effects | On / On | On / On | Off / Off |
 
-### В игре
+### In-Game Hotkeys
 
-| Клавиша | Действие |
+| Key | Action |
 |---|---|
-| `F9` | Показать или скрыть **HUD**: FPS, 1% low, время кадра, масштаб карты, график, профиль |
-| `Shift + F9` | Открыть меню HUD: переключение профиля на лету и **«Замер 30 с»** по сцене |
-| `F10` | Сохранить диагностический снимок (`fp-diag-*.json`) в **«Загрузки»** |
-| `F11` | Переключить полноэкранный режим без рамки для текущего окна игры |
+| `F9` | Toggle performance **HUD**: FPS, 1% low, frame time, canvas scale, graph, active profile |
+| `Shift + F9` | Open HUD menu: switch profile on the fly or run a **30s scene benchmark** |
+| `F10` | Save a diagnostic snapshot (`fp-diag-*.json`) to **Downloads** |
+| `F11` | Toggle borderless fullscreen for the active game window |
 
 ---
 
-## Командная строка
+## Command Line
 
 ```powershell
-FoundryPerformance.exe --open <адрес> [--safe | --baseline]
+FoundryPerformance.exe --open <url> [--safe | --baseline]
 ```
 
-| Флаг | Назначение |
+| Flag | Purpose |
 |---|---|
-| `--open <адрес>` | Открыть сервер напрямую, минуя окно лаунчера (передаётся также уже запущенной копии) |
-| `--safe` | Безопасный режим: стандартные флаги движка + сброс управляемых `core.*`-настроек |
-| `--baseline` | Базовый замер: стандартные флаги и настройки Foundry по умолчанию, агент только собирает метрики |
-| `--portable` | Принудительный запуск в портативном режиме без установщика |
-| `--uninstall` | Открыть экран удаления программы |
+| `--open <url>` | Open a server URL directly, skipping the launcher (forwards to an existing instance) |
+| `--safe` | Safe mode: stock engine flags and reset managed `core.*` settings |
+| `--baseline` | Baseline benchmark: stock flags/settings with metrics collection only |
+| `--portable` | Force portable mode without installer flow |
+| `--uninstall` | Open the uninstaller screen |
 
 ---
 
-## Разработка и сборка
+## Development & Build
 
-Требования: **Node.js 24+**, **Rust (`stable-msvc`)** и **MSVC Build Tools** (для нативной части под Windows).
+Requires **Node.js 24+**, **Rust (`stable-msvc`)**, and **MSVC Build Tools** (for the Windows native shell).
 
 ```bash
-npm install                                      # установка JS-зависимостей
-npm run tauri dev                                # запуск приложения в режиме разработки
-npm run dev                                      # превью интерфейса лаунчера в браузере
-npm run check                                    # проверка типов Svelte / TypeScript
-npm test                                         # тесты агента и фронтенда (Vitest)
-cargo test --manifest-path src-tauri/Cargo.toml  # тесты Rust-ядра (Windows)
-npm run dist                                     # сборка dist-release/: .exe и -portable.zip
+npm install                                      # Install JS dependencies
+npm run tauri dev                                # Launch app in dev mode
+npm run dev                                      # Preview launcher UI in browser
+npm run check                                    # Svelte / TypeScript typecheck
+npm test                                         # Agent & frontend tests (Vitest)
+cargo test --manifest-path src-tauri/Cargo.toml  # Rust unit tests (Windows)
+npm run dist                                     # Build dist-release/ .exe and -portable.zip
 ```
 
 <details>
-<summary><b>Подсказки для превью интерфейса в браузере (<code>npm run dev</code>)</b></summary>
+<summary><b>Browser UI preview flags (<code>npm run dev</code>)</b></summary>
 
-- `?kit` — витрина UI-примитивов Tactile
-- `?mode=install` / `?mode=install&state=upgrade` / `?mode=uninstall` — экраны установки и удаления
-- `?splash&update=1` / `?splash&update=bad` / `?splash&update=fail` — состояния сплэша обновления
-- `?gpu=ok|software|none` — симуляция статуса видеокарты
+- `?kit` — Tactile UI component showcase
+- `?mode=install` / `?mode=install&state=upgrade` / `?mode=uninstall` — installer/uninstaller views
+- `?splash&update=1` / `?splash&update=bad` / `?splash&update=fail` — updater splash states
+- `?gpu=ok|software|none` — simulated GPU status
 
 </details>
 
-### Структура проекта
+### Project Layout
 
 ```text
-├── src/            # Интерфейс лаунчера (Svelte 5, управление состоянием и настройками)
-├── agent/          # Внутристраничный агент Foundry VTT (адаптивное разрешение, HUD, бенчмарк)
-├── src-tauri/      # Оболочка Tauri v2 (флаги WebView2, установщик, автообновление, проба серверов)
-├── scripts/        # Сборка портативного/установочного архива, иконок, манифеста обновлений
-└── CHANGELOG.md    # История изменений (встраивается в лаунчер и релизы)
+├── src/            # Launcher UI (Svelte 5, state & profile management)
+├── agent/          # In-page Foundry VTT agent (adaptive resolution, HUD, benchmark)
+├── src-tauri/      # Tauri v2 host (WebView2 flags, installer, auto-updater, server probe)
+├── scripts/        # Packaging, icons, and update manifest tooling
+└── CHANGELOG.md    # Release history (embedded into launcher and releases)
 ```
 
 ---
 
+## Feedback & License
+
+Pull Requests are disabled on this repository; bug reports and suggestions are welcome via [GitHub Issues](https://github.com/TacticalOtaku/FoundryPerformance/issues) (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+
+Released under the **GNU General Public License v3.0** ([LICENSE](LICENSE)).
+
 <div align="center">
 
-Полный список изменений — в [CHANGELOG.md](CHANGELOG.md) • Релизы — на [GitHub Releases](https://github.com/TacticalOtaku/FoundryPerformance/releases)
+Full changelog in [CHANGELOG.md](CHANGELOG.md) • Binaries on [GitHub Releases](https://github.com/TacticalOtaku/FoundryPerformance/releases)
 
 </div>
